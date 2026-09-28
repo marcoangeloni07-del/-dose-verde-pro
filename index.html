@@ -1,0 +1,506 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Dose Verde — versione stabile</title>
+<meta name="theme-color" content="#1f6b45">
+<style>
+:root{
+  --green:#1f6b45;
+  --green2:#2f875b;
+  --bg:#f3f7f4;
+  --card:#ffffff;
+  --ink:#173126;
+  --muted:#6e7c74;
+  --line:#dce6df;
+  --soft:#eaf4ed;
+  --danger:#a23a32;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif}
+button,input,select{font:inherit}
+header{
+  position:sticky;top:0;z-index:10;
+  background:linear-gradient(135deg,#174d34,#2d8056);
+  color:white;box-shadow:0 2px 12px rgba(0,0,0,.12)
+}
+.header-inner{max-width:760px;margin:auto;padding:18px 14px 13px}
+h1{margin:0;font-size:23px}
+.sub{font-size:12px;opacity:.9;margin-top:3px}
+nav{display:flex;gap:8px;margin-top:12px;overflow:auto}
+nav button{
+  border:0;border-radius:10px;padding:9px 11px;
+  background:rgba(255,255,255,.14);color:white;font-weight:800;white-space:nowrap
+}
+nav button.active{background:white;color:var(--green)}
+main{max-width:760px;margin:auto;padding:14px 13px 40px}
+.screen{display:none}.screen.active{display:block}
+.card{
+  background:var(--card);border:1px solid var(--line);border-radius:18px;
+  padding:15px;margin-bottom:13px;box-shadow:0 8px 24px rgba(27,64,45,.06)
+}
+h2{font-size:18px;margin:0 0 13px}
+label{display:block;font-size:12px;font-weight:800;color:#4b5c53;margin-bottom:5px}
+input,select{
+  width:100%;border:1px solid #ccd9d0;border-radius:11px;
+  padding:12px;background:white;color:var(--ink);font-size:16px
+}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+@media(max-width:600px){.grid2{grid-template-columns:1fr}}
+.btn{border:0;border-radius:12px;padding:12px 13px;font-weight:850;cursor:pointer}
+.full{width:100%}
+.primary{background:var(--green);color:white}
+.secondary{background:var(--soft);color:var(--green)}
+.danger{background:#fff0ef;color:var(--danger)}
+.small{padding:8px 10px;border-radius:9px;font-size:13px}
+.plus{height:46px;min-width:48px;border:0;border-radius:12px;background:var(--soft);color:var(--green);font-size:23px;font-weight:900}
+.quickrow{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:end}
+.result{background:#edf7f0;border:1px solid #cce4d4;border-radius:16px;padding:15px;margin-top:13px}
+.big{font-size:30px;font-weight:900;letter-spacing:-.8px}
+.muted{font-size:12px;color:var(--muted);line-height:1.5}
+.pill{display:inline-block;background:#e6f1ea;color:#285f43;border-radius:999px;padding:5px 8px;margin:2px 3px 2px 0;font-weight:800;font-size:11px}
+.product{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center;padding:11px 0;border-top:1px solid var(--line)}
+.product:first-child{border-top:0}
+.actions{display:grid;gap:6px}
+.hidden{display:none!important}
+hr{border:0;border-top:1px solid var(--line);margin:14px 0}
+.note{background:#fff8df;border:1px solid #e4cb73;border-radius:12px;padding:11px;font-size:12px;line-height:1.45}
+footer{text-align:center;color:#7a8980;font-size:11px;padding:0 14px 25px}
+</style>
+</head>
+<body>
+<header>
+  <div class="header-inner">
+    <h1>🌿 Dose Verde</h1>
+    <div class="sub" id="status">Avvio…</div>
+    <nav>
+      <button type="button" data-screen="calc" class="active">Calcola</button>
+      <button type="button" data-screen="archive">Archivio</button>
+      <button type="button" data-screen="product">Nuovo prodotto</button>
+    </nav>
+  </div>
+</header>
+
+<main>
+<section id="screen-calc" class="screen active">
+  <div class="card">
+    <h2>Calcolo rapido</h2>
+
+    <div class="quickrow">
+      <div>
+        <label for="calcProduct">Prodotto</label>
+        <select id="calcProduct"></select>
+      </div>
+      <button id="plusBtn" class="plus" type="button" aria-label="Aggiungi prodotto">＋</button>
+    </div>
+
+    <div class="grid2" style="margin-top:10px">
+      <div>
+        <label>Superficie</label>
+        <div style="display:grid;grid-template-columns:2fr 1fr;gap:8px">
+          <input id="area" type="number" min="0" step="0.1" value="150">
+          <select id="areaUnit">
+            <option value="m2">m²</option>
+            <option value="ha">ha</option>
+          </select>
+        </div>
+      </div>
+      <div>
+        <label for="tank">Pompa / serbatoio (L)</label>
+        <input id="tank" type="number" min="0" step="0.1" value="12">
+      </div>
+    </div>
+
+    <div class="grid2" style="margin-top:10px">
+      <div>
+        <label for="doseChoice">Dose da usare</label>
+        <select id="doseChoice">
+          <option value="min">Minima</option>
+          <option value="mid" selected>Media</option>
+          <option value="max">Massima</option>
+        </select>
+      </div>
+      <div>
+        <label for="waterChoice">Volume d'acqua</label>
+        <select id="waterChoice">
+          <option value="min">Minimo</option>
+          <option value="mid" selected>Medio</option>
+          <option value="max">Massimo</option>
+        </select>
+      </div>
+    </div>
+
+    <button id="calcBtn" class="btn full primary" style="margin-top:14px" type="button">CALCOLA</button>
+    <div id="resultBox" class="result hidden"></div>
+  </div>
+
+  <div class="note">
+    <strong>Nota:</strong> questa versione esegue solo il calcolo matematico sui dati salvati.
+    Verifica sempre l'etichetta autorizzata prima dell'impiego.
+  </div>
+</section>
+
+<section id="screen-archive" class="screen">
+  <div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:10px">
+      <h2 style="margin:0">Archivio prodotti</h2>
+      <button id="newFromArchive" class="btn secondary small" type="button">＋ Nuovo</button>
+    </div>
+    <input id="search" placeholder="Cerca prodotto…">
+    <div id="archiveList" style="margin-top:8px"></div>
+  </div>
+</section>
+
+<section id="screen-product" class="screen">
+  <div class="card">
+    <h2 id="formTitle">Nuovo prodotto</h2>
+    <input id="editId" type="hidden">
+
+    <div class="grid2">
+      <div>
+        <label for="pName">Nome prodotto</label>
+        <input id="pName" placeholder="Es. Turfene Plus">
+      </div>
+      <div>
+        <label for="pScenario">Scenario / uso</label>
+        <input id="pScenario" placeholder="Es. prato dal 2° anno">
+      </div>
+    </div>
+
+    <div class="grid2" style="margin-top:10px">
+      <div>
+        <label for="pUnit">Unità della dose</label>
+        <select id="pUnit">
+          <option value="L_ha">L/ha</option>
+          <option value="kg_ha">kg/ha</option>
+          <option value="ml_100m2">ml/100 m²</option>
+          <option value="g_100m2">g/100 m²</option>
+          <option value="ml_L">ml/L acqua</option>
+          <option value="g_L">g/L acqua</option>
+        </select>
+      </div>
+      <div>
+        <label>Intervallo dose</label>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+          <input id="pMin" type="number" step="0.001" placeholder="Min">
+          <input id="pMax" type="number" step="0.001" placeholder="Max">
+        </div>
+      </div>
+    </div>
+
+    <div class="grid2" style="margin-top:10px">
+      <div>
+        <label for="wMin">Acqua minima (L/ha)</label>
+        <input id="wMin" type="number" step="1" placeholder="Es. 400">
+      </div>
+      <div>
+        <label for="wMax">Acqua massima (L/ha)</label>
+        <input id="wMax" type="number" step="1" placeholder="Es. 600">
+      </div>
+    </div>
+
+    <button id="saveBtn" class="btn full primary" style="margin-top:14px" type="button">Salva prodotto</button>
+    <button id="deleteBtn" class="btn full danger hidden" style="margin-top:8px" type="button">Elimina prodotto</button>
+  </div>
+</section>
+</main>
+
+<footer>Dose Verde · versione stabile 1.1 reset</footer>
+
+<script>
+(function(){
+'use strict';
+
+var KEY='dose_verde_stable_v1';
+
+var defaultProducts=[
+  {
+    id:'turfene-maturo',
+    name:'Turfene Plus — prato dal 2° anno',
+    scenario:'Prato dal 2° anno',
+    min:5,max:8,unit:'L_ha',waterMin:400,waterMax:600
+  },
+  {
+    id:'turfene-primo-anno',
+    name:"Turfene Plus — 1° anno",
+    scenario:"1° anno d'impianto",
+    min:5,max:6,unit:'L_ha',waterMin:400,waterMax:600
+  }
+];
+
+function el(id){return document.getElementById(id)}
+function esc(s){
+  return String(s==null?'':s).replace(/[&<>"']/g,function(m){
+    return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m];
+  });
+}
+function fmt(n,d){
+  return new Intl.NumberFormat('it-IT',{maximumFractionDigits:d==null?1:d}).format(Number(n));
+}
+function unitLabel(u){
+  var m={
+    L_ha:'L/ha',kg_ha:'kg/ha',
+    ml_100m2:'ml/100 m²',g_100m2:'g/100 m²',
+    ml_L:'ml/L acqua',g_L:'g/L acqua'
+  };
+  return m[u]||u;
+}
+function loadProducts(){
+  try{
+    var raw=localStorage.getItem(KEY);
+    if(!raw){
+      localStorage.setItem(KEY,JSON.stringify(defaultProducts));
+      return defaultProducts.slice();
+    }
+    var arr=JSON.parse(raw);
+    return Array.isArray(arr)?arr:defaultProducts.slice();
+  }catch(e){
+    return defaultProducts.slice();
+  }
+}
+function saveProducts(arr){
+  localStorage.setItem(KEY,JSON.stringify(arr));
+}
+function showScreen(name){
+  document.querySelectorAll('.screen').forEach(function(s){s.classList.remove('active')});
+  var target=el('screen-'+name);
+  if(target) target.classList.add('active');
+
+  document.querySelectorAll('nav button[data-screen]').forEach(function(b){
+    b.classList.toggle('active',b.getAttribute('data-screen')===name);
+  });
+
+  if(name==='archive') renderArchive();
+  if(name==='calc') renderProductSelect();
+  window.scrollTo(0,0);
+}
+function renderProductSelect(preselect){
+  var products=loadProducts().slice().sort(function(a,b){return a.name.localeCompare(b.name)});
+  el('calcProduct').innerHTML=products.map(function(p){
+    return '<option value="'+esc(p.id)+'">'+esc(p.name)+'</option>';
+  }).join('');
+  if(preselect && products.some(function(p){return p.id===preselect})){
+    el('calcProduct').value=preselect;
+  }
+}
+function choose(min,max,mode){
+  min=Number(min)||0;max=Number(max)||0;
+  if(mode==='min')return min||max;
+  if(mode==='max')return max||min;
+  return (min&&max)?(min+max)/2:(min||max);
+}
+function amountFor(p,dose,areaM2,waterL){
+  if(p.unit==='L_ha')return {value:dose*(areaM2/10000)*1000,unit:'ml'};
+  if(p.unit==='kg_ha')return {value:dose*(areaM2/10000)*1000,unit:'g'};
+  if(p.unit==='ml_100m2')return {value:dose*(areaM2/100),unit:'ml'};
+  if(p.unit==='g_100m2')return {value:dose*(areaM2/100),unit:'g'};
+  if(p.unit==='ml_L')return {value:dose*waterL,unit:'ml'};
+  if(p.unit==='g_L')return {value:dose*waterL,unit:'g'};
+  return {value:0,unit:''};
+}
+function calculate(){
+  var products=loadProducts();
+  var p=products.find(function(x){return x.id===el('calcProduct').value});
+  if(!p){alert('Seleziona un prodotto.');return}
+
+  var raw=Number(el('area').value);
+  if(!(raw>0)){alert('Inserisci una superficie valida.');return}
+  var areaM2=el('areaUnit').value==='ha'?raw*10000:raw;
+  var tank=Number(el('tank').value)||0;
+
+  var dose=choose(p.min,p.max,el('doseChoice').value);
+  var waterRate=choose(p.waterMin,p.waterMax,el('waterChoice').value);
+  var waterL=waterRate>0?waterRate*(areaM2/10000):0;
+
+  if((p.unit==='ml_L'||p.unit==='g_L') && !(waterL>0)){
+    alert("Per questa unità serve anche il volume d'acqua.");
+    return;
+  }
+
+  var q=amountFor(p,dose,areaM2,waterL);
+  var plan='';
+
+  if(waterL>0 && tank>0){
+    if(waterL<=tank){
+      plan='Prepara <b>'+fmt(waterL,2)+' L</b> di miscela con <b>'+fmt(q.value,1)+' '+q.unit+'</b> di prodotto.';
+    }else{
+      var full=Math.floor(waterL/tank);
+      var rem=waterL-full*tank;
+      var perTank=q.value*(tank/waterL);
+      plan='Prepara '+full+' '+(full===1?'carico':'carichi')+' da <b>'+fmt(tank,1)+' L</b> con <b>'+fmt(perTank,1)+' '+q.unit+'</b> per carico';
+      if(rem>0.05){
+        var remProd=q.value*(rem/waterL);
+        plan+=', poi '+fmt(rem,2)+' L con '+fmt(remProd,1)+' '+q.unit;
+      }
+      plan+='.';
+    }
+  }else if(waterL>0){
+    plan='Volume totale di miscela: <b>'+fmt(waterL,2)+' L</b>.';
+  }else{
+    plan="Prodotto totale calcolato; il volume d'acqua non è salvato per questo prodotto.";
+  }
+
+  var box=el('resultBox');
+  box.innerHTML=
+    '<div class="muted">'+esc(p.name)+' · '+fmt(areaM2,1)+' m²</div>'+
+    '<div class="big">'+fmt(q.value,1)+' '+q.unit+'</div>'+
+    '<div class="muted">prodotto totale</div>'+
+    '<hr>'+
+    '<div><span class="pill">Dose '+fmt(dose,2)+' '+unitLabel(p.unit)+'</span>'+
+    (waterL?'<span class="pill">'+fmt(waterL,2)+' L miscela</span>':'')+'</div>'+
+    '<div style="margin-top:10px;line-height:1.55">'+plan+'</div>';
+  box.classList.remove('hidden');
+}
+function renderArchive(){
+  var q=el('search').value.trim().toLowerCase();
+  var products=loadProducts()
+    .filter(function(p){return !q || p.name.toLowerCase().indexOf(q)>=0 || (p.scenario||'').toLowerCase().indexOf(q)>=0})
+    .sort(function(a,b){return a.name.localeCompare(b.name)});
+
+  if(!products.length){
+    el('archiveList').innerHTML='<div class="muted" style="padding:14px 0">Nessun prodotto trovato.</div>';
+    return;
+  }
+
+  el('archiveList').innerHTML=products.map(function(p){
+    return '<div class="product">'+
+      '<div><strong>'+esc(p.name)+'</strong>'+
+      '<div class="muted">'+esc(p.scenario||'')+'</div>'+
+      '<div><span class="pill">'+fmt(p.min,2)+'–'+fmt(p.max,2)+' '+unitLabel(p.unit)+'</span>'+
+      ((p.waterMin||p.waterMax)?'<span class="pill">'+fmt(p.waterMin||p.waterMax,0)+'–'+fmt(p.waterMax||p.waterMin,0)+' L/ha acqua</span>':'')+
+      '</div></div>'+
+      '<div class="actions">'+
+      '<button class="btn small secondary" type="button" data-action="edit" data-id="'+esc(p.id)+'">Apri</button>'+
+      '<button class="btn small primary" type="button" data-action="use" data-id="'+esc(p.id)+'">Usa</button>'+
+      '</div></div>';
+  }).join('');
+}
+function resetForm(){
+  el('editId').value='';
+  el('pName').value='';
+  el('pScenario').value='';
+  el('pUnit').value='L_ha';
+  el('pMin').value='';
+  el('pMax').value='';
+  el('wMin').value='';
+  el('wMax').value='';
+  el('formTitle').textContent='Nuovo prodotto';
+  el('deleteBtn').classList.add('hidden');
+}
+function editProduct(id){
+  var p=loadProducts().find(function(x){return x.id===id});
+  if(!p)return;
+
+  el('editId').value=p.id;
+  el('pName').value=p.name||'';
+  el('pScenario').value=p.scenario||'';
+  el('pUnit').value=p.unit||'L_ha';
+  el('pMin').value=p.min!=null?p.min:'';
+  el('pMax').value=p.max!=null?p.max:'';
+  el('wMin').value=p.waterMin||'';
+  el('wMax').value=p.waterMax||'';
+  el('formTitle').textContent='Modifica prodotto';
+  el('deleteBtn').classList.remove('hidden');
+  showScreen('product');
+}
+function saveProduct(){
+  var name=el('pName').value.trim();
+  var minText=el('pMin').value;
+  var maxText=el('pMax').value;
+
+  if(!name){alert('Inserisci il nome del prodotto.');return}
+  if(minText==='' || maxText===''){alert('Inserisci dose minima e massima.');return}
+
+  var products=loadProducts();
+  var id=el('editId').value || ('p_'+Date.now());
+
+  var obj={
+    id:id,
+    name:name,
+    scenario:el('pScenario').value.trim(),
+    unit:el('pUnit').value,
+    min:Number(minText),
+    max:Number(maxText),
+    waterMin:Number(el('wMin').value)||0,
+    waterMax:Number(el('wMax').value)||0
+  };
+
+  var idx=products.findIndex(function(x){return x.id===id});
+  if(idx>=0)products[idx]=obj;else products.push(obj);
+  saveProducts(products);
+
+  resetForm();
+  renderProductSelect(id);
+  showScreen('archive');
+}
+function deleteProduct(){
+  var id=el('editId').value;
+  if(!id)return;
+  if(!confirm('Eliminare questo prodotto?'))return;
+
+  var products=loadProducts().filter(function(p){return p.id!==id});
+  saveProducts(products);
+  resetForm();
+  renderProductSelect();
+  showScreen('archive');
+}
+function newProduct(){
+  resetForm();
+  showScreen('product');
+}
+function wire(){
+  document.querySelectorAll('nav button[data-screen]').forEach(function(btn){
+    btn.addEventListener('click',function(){
+      showScreen(btn.getAttribute('data-screen'));
+    });
+  });
+
+  el('plusBtn').addEventListener('click',newProduct);
+  el('newFromArchive').addEventListener('click',newProduct);
+  el('calcBtn').addEventListener('click',calculate);
+  el('saveBtn').addEventListener('click',saveProduct);
+  el('deleteBtn').addEventListener('click',deleteProduct);
+  el('search').addEventListener('input',renderArchive);
+
+  el('archiveList').addEventListener('click',function(e){
+    var b=e.target.closest('button[data-action]');
+    if(!b)return;
+    var id=b.getAttribute('data-id');
+    if(b.getAttribute('data-action')==='edit')editProduct(id);
+    if(b.getAttribute('data-action')==='use'){
+      renderProductSelect(id);
+      showScreen('calc');
+    }
+  });
+}
+function start(){
+  if(!localStorage.getItem(KEY)){
+    saveProducts(defaultProducts);
+  }
+  wire();
+  renderProductSelect();
+  el('status').textContent='Pronta · versione 1.1 reset';
+}
+
+window.addEventListener('DOMContentLoaded',start);
+})();
+</script>
+
+<script>
+(function(){
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.getRegistrations().then(function(regs){
+      regs.forEach(function(reg){ reg.unregister(); });
+    }).catch(function(){});
+  }
+  if ('caches' in window) {
+    caches.keys().then(function(keys){
+      keys.forEach(function(key){ caches.delete(key); });
+    }).catch(function(){});
+  }
+})();
+</script>
+
+</body>
+</html>
