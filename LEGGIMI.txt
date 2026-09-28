@@ -1,30 +1,46 @@
-DOSE VERDE 1.4 — PREVENTIVO INTERVENTO
+DOSE VERDE 1.5 — CALCOLATORE MULTI-TRATTAMENTO
 
-NUOVA SEZIONE "PREVENTIVO"
-- quantità di prodotto calcolata automaticamente dalla dose e dalla superficie
-- costo prodotto da prezzo di acquisto €/L o €/kg
-- ore, operatori e costo manodopera interno
-- trasferta, attrezzature/noli, smaltimento, altri costi
-- spese generali
-- utile d'impresa
-- eventuale IVA/imposta
-- minimo intervento
-- totale cliente
-- memorizzazione locale dei valori economici usati più spesso
+NOVITÀ PRINCIPALI
+- categoria prodotto: erbicida, fungicida, insetticida, acaricida, ecc.
+- tipo di bersaglio: prato/terreno, arbusti, alberi, siepi, filari, vasi
+- il tipo di calcolo cambia automaticamente in base all'unità indicata dall'etichetta
 
-RIFERIMENTI
-- Prezzario Regione Sardegna LL.PP. 2026: ricerca direttamente nel pacchetto CSV open data ufficiale.
-- Assoverde 2026: vengono usati come default modificabili solo i parametri pubblicamente dichiarati
-  di 16% spese generali e 10% utile. Le singole voci/prezzi Assoverde non vengono importate perché il prezzario è commerciale.
+UNITÀ SUPPORTATE
+- L/ha, kg/ha
+- ml/100 m², g/100 m²
+- ml/L acqua, g/L acqua
+- ml/100 L acqua, g/100 L acqua
+- ml/pianta, g/pianta
+- ml/metro lineare, g/metro lineare
+
+CALCOLO
+- per superficie: m²/ha
+- per acqua: litri totali di miscela
+- per pianta: numero di esemplari
+- per siepe/filare: metri lineari
+- altezza e diametro chioma possono essere registrati come dati del bersaglio ma NON modificano automaticamente la dose,
+  a meno che l'etichetta prescriva una regola specifica. In questo modo non vengono inventate conversioni agronomiche.
+
+RICERCA
+- resta attiva la ricerca Ministero
+- resta attiva la ricerca di etichette/schede
+- l'analizzatore riconosce anche dosi per litro, 100 L, pianta e metro lineare
+- la categoria viene proposta automaticamente dall'attività ufficiale del prodotto
+
+PREVENTIVO
+- supporta ora superficie, litri di miscela, numero piante e metri lineari
+
+COMPATIBILITÀ
+I prodotti già salvati continuano a funzionare. Se non hanno categoria/bersaglio, Dose Verde li interpreta con valori compatibili con le versioni precedenti.
 
 AGGIORNAMENTO GITHUB
-Sostituisci/carica nella root:
+Sostituisci nella root:
 - index.html
 - search.js
 - find-technical.js
 - analyze.js
-- tariffe.js   <-- NUOVO
+- tariffe.js
 - package.json
 - vercel.json
 
-Poi Commit changes e attendi il redeploy Vercel.
+Poi Commit changes e attendi il deployment Vercel.

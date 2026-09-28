@@ -87,40 +87,42 @@ function findCandidates(text){
   const compact=cleanContext(text);
   const dose=[],water=[];
 
-  // Supports 5-8 L/ha, 5 a 8 L/ha, 5 L/ha and similar.
-  const re=/(\d+(?:[.,]\d+)?)\s*(?:(?:-|–|—|÷|\ba\b|\bfino\s+a\b)\s*(\d+(?:[.,]\d+)?))?\s*(ml|l|litri|kg|g)\s*(?:\/|per)\s*(ha|ettaro|ettari|100\s*(?:m²|m2|mq))/gi;
+  function addItem(m,min,max,unit,basis,pos,ctx){
+    const lc=ctx.toLowerCase();
+    const item={
+      min,max,unit:unit.toLowerCase(),area:basis.toLowerCase(),basis:basis.toLowerCase(),
+      label:(min===max?String(min):min+'–'+max)+' '+unit+'/'+basis,
+      context:ctx.slice(0,500),pos,
+      scenario:detectScenario(ctx)
+    };
+    const waterWords=/volume\s*(?:d['’]acqua|acqua)|acqua|miscela|bagnatura|diluizione|irrorazione/.test(lc);
+    const isArea=/ha|ettar|100\s*(?:m²|m2|mq)/i.test(basis);
+    if(waterWords && isArea && (item.unit==='l'||item.unit==='litri') && item.min>=20){
+      water.push(item);
+    }else{
+      dose.push(item);
+    }
+  }
+
+  // Area, water, plant and linear-meter bases.
+  const re=/(\d+(?:[.,]\d+)?)\s*(?:(?:-|–|—|÷|\ba\b|\bfino\s+a\b)\s*(\d+(?:[.,]\d+)?))?\s*(ml|l|litri|kg|g)\s*(?:\/|per)\s*(ha|ettaro|ettari|100\s*(?:m²|m2|mq)|100\s*l(?:itri)?|l(?:itro|itri)?\s*(?:d['’]acqua|acqua)?|pianta|piante|esemplare|esemplari|albero|alberi|arbusto|arbusti|vaso|vasi|m(?:etro|etri)?\s*(?:lineare|lineari)?)/gi;
 
   let m;
   while((m=re.exec(compact))!==null){
-    const min=n(m[1]);
-    const max=m[2]?n(m[2]):min;
+    const min=n(m[1]),max=m[2]?n(m[2]):min;
     const before=compact.slice(Math.max(0,m.index-240),m.index);
     const after=compact.slice(re.lastIndex,Math.min(compact.length,re.lastIndex+240));
     const ctx=cleanContext(before+' '+m[0]+' '+after);
-    const lc=ctx.toLowerCase();
-    const item=normalizeUnit(m[3],m[4],min,max);
-    item.label=(min===max?String(m[1]):m[1]+'–'+m[2])+' '+m[3]+'/'+m[4];
-    item.context=ctx.slice(0,500);
-    item.pos=m.index;
-    item.scenario=detectScenario(ctx);
-
-    const waterWords=/volume\s*(?:d['’]acqua|acqua)|acqua|miscela|bagnatura|diluizione|irrorazione/.test(lc);
-    const doseWords=/dose|dosi|dosaggio|impiego|applicazione|applicare|distribuire|trattamento/.test(lc);
-
-    if(waterWords && (item.unit==='l'||item.unit==='litri') && item.min>=20){
-      water.push(item);
-    }else if(doseWords || !waterWords){
-      dose.push(item);
-    }
+    addItem(m,min,max,m[3],m[4],m.index,ctx);
   }
 
   function uniq(arr){
     const seen=new Set();
     return arr.filter(x=>{
       const k=[x.min,x.max,x.unit,x.area,x.scenario].join('|');
-      if(seen.has(k)) return false;
-      seen.add(k); return true;
-    }).slice(0,12);
+      if(seen.has(k))return false;
+      seen.add(k);return true;
+    }).slice(0,16);
   }
   return {dose:uniq(dose),water:uniq(water)};
 }
@@ -172,7 +174,7 @@ module.exports=async function(req,res){
     const r=await fetch(u.toString(),{
       redirect:'follow',
       signal:controller.signal,
-      headers:{'user-agent':'Mozilla/5.0 DoseVerde/1.3.3'}
+      headers:{'user-agent':'Mozilla/5.0 DoseVerde/1.5'}
     });
     clearTimeout(timer);
 

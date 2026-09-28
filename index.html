@@ -161,9 +161,13 @@ footer{text-align:center;color:#7a8980;font-size:11px;padding:0 14px 25px}
       <button id="plusBtn" class="plus" type="button" aria-label="Aggiungi prodotto">＋</button>
     </div>
 
-    <div class="grid2" style="margin-top:10px">
+    <div id="calcContext" class="notice" style="margin-top:10px">
+      Il tipo di calcolo verrà adattato automaticamente all'unità di dose del prodotto.
+    </div>
+
+    <div id="calcAreaGroup" class="grid2" style="margin-top:10px">
       <div>
-        <label>Superficie</label>
+        <label>Superficie trattata</label>
         <div style="display:grid;grid-template-columns:2fr 1fr;gap:8px">
           <input id="area" type="number" min="0" step="0.1" value="150">
           <select id="areaUnit">
@@ -175,6 +179,41 @@ footer{text-align:center;color:#7a8980;font-size:11px;padding:0 14px 25px}
       <div>
         <label for="tank">Pompa / serbatoio (L)</label>
         <input id="tank" type="number" min="0" step="0.1" value="12">
+      </div>
+    </div>
+
+    <div id="calcWaterGroup" class="grid2 hidden" style="margin-top:10px">
+      <div>
+        <label for="waterTotal">Volume totale di acqua / miscela (L)</label>
+        <input id="waterTotal" type="number" min="0" step="0.1" placeholder="Es. 12">
+      </div>
+      <div>
+        <label for="tankWater">Pompa / serbatoio (L)</label>
+        <input id="tankWater" type="number" min="0" step="0.1" value="12">
+      </div>
+    </div>
+
+    <div id="calcPlantsGroup" class="hidden" style="margin-top:10px">
+      <div class="grid3">
+        <div><label for="plantCount">Numero piante</label><input id="plantCount" type="number" min="1" step="1" value="1"></div>
+        <div><label for="plantHeight">Altezza media (m)</label><input id="plantHeight" type="number" min="0" step="0.1" placeholder="facoltativa"></div>
+        <div><label for="plantCrown">Diametro/larghezza chioma (m)</label><input id="plantCrown" type="number" min="0" step="0.1" placeholder="facoltativo"></div>
+      </div>
+      <div class="muted" style="margin-top:6px">Altezza e chioma descrivono il bersaglio ma non modificano la dose, salvo indicazione esplicita dell'etichetta.</div>
+    </div>
+
+    <div id="calcHedgeGroup" class="hidden" style="margin-top:10px">
+      <div class="grid3">
+        <div><label for="hedgeLength">Lunghezza siepe / filare (m)</label><input id="hedgeLength" type="number" min="0" step="0.1" value="10"></div>
+        <div><label for="hedgeHeight">Altezza media (m)</label><input id="hedgeHeight" type="number" min="0" step="0.1" placeholder="facoltativa"></div>
+        <div><label for="hedgeWidth">Larghezza media (m)</label><input id="hedgeWidth" type="number" min="0" step="0.1" placeholder="facoltativa"></div>
+      </div>
+    </div>
+
+    <div id="calcPotsGroup" class="hidden" style="margin-top:10px">
+      <div class="grid2">
+        <div><label for="potCount">Numero vasi / contenitori</label><input id="potCount" type="number" min="1" step="1" value="1"></div>
+        <div><label for="substrateVolume">Volume substrato per vaso (L)</label><input id="substrateVolume" type="number" min="0" step="0.1" placeholder="facoltativo"></div>
       </div>
     </div>
 
@@ -255,6 +294,37 @@ footer{text-align:center;color:#7a8980;font-size:11px;padding:0 14px 25px}
       </div>
     </div>
 
+    <div class="grid2" style="margin-top:10px">
+      <div>
+        <label for="pCategory">Categoria / attività</label>
+        <select id="pCategory">
+          <option value="Erbicida">Erbicida</option>
+          <option value="Fungicida">Fungicida</option>
+          <option value="Insetticida">Insetticida</option>
+          <option value="Acaricida">Acaricida</option>
+          <option value="Insetticida-acaricida">Insetticida-acaricida</option>
+          <option value="Nematocida">Nematocida</option>
+          <option value="Molluschicida">Molluschicida</option>
+          <option value="Regolatore di crescita">Regolatore di crescita</option>
+          <option value="Biostimolante">Biostimolante</option>
+          <option value="Concime">Concime</option>
+          <option value="Altro">Altro</option>
+        </select>
+      </div>
+      <div>
+        <label for="pTarget">Tipo di bersaglio</label>
+        <select id="pTarget">
+          <option value="prato_terreno">Prato / terreno / aiuola</option>
+          <option value="arbusto">Arbusti / piante singole</option>
+          <option value="albero">Alberi</option>
+          <option value="siepe">Siepe</option>
+          <option value="filare">Filare</option>
+          <option value="vaso">Vasi / contenitori</option>
+          <option value="altro">Altro</option>
+        </select>
+      </div>
+    </div>
+
     <div class="meta-grid">
       <div>
         <label for="pRegistration">Numero registrazione</label>
@@ -284,6 +354,12 @@ footer{text-align:center;color:#7a8980;font-size:11px;padding:0 14px 25px}
           <option value="g_100m2">g/100 m²</option>
           <option value="ml_L">ml/L acqua</option>
           <option value="g_L">g/L acqua</option>
+          <option value="ml_100L">ml/100 L acqua</option>
+          <option value="g_100L">g/100 L acqua</option>
+          <option value="ml_plant">ml/pianta</option>
+          <option value="g_plant">g/pianta</option>
+          <option value="ml_m">ml/metro lineare</option>
+          <option value="g_m">g/metro lineare</option>
         </select>
       </div>
       <div>
@@ -297,11 +373,11 @@ footer{text-align:center;color:#7a8980;font-size:11px;padding:0 14px 25px}
 
     <div class="grid2" style="margin-top:10px">
       <div>
-        <label for="wMin">Acqua minima (L/ha)</label>
+        <label for="wMin">Acqua minima (L/ha, se prevista)</label>
         <input id="wMin" type="number" step="1" placeholder="Es. 400">
       </div>
       <div>
-        <label for="wMax">Acqua massima (L/ha)</label>
+        <label for="wMax">Acqua massima (L/ha, se prevista)</label>
         <input id="wMax" type="number" step="1" placeholder="Es. 600">
       </div>
     </div>
@@ -384,8 +460,20 @@ footer{text-align:center;color:#7a8980;font-size:11px;padding:0 14px 25px}
         </select>
       </div>
       <div>
-        <label for="quoteArea">Superficie (m²)</label>
+        <label for="quoteArea">Superficie (m²) — se pertinente</label>
         <input id="quoteArea" type="number" min="0" step="0.1" value="150">
+      </div>
+      <div>
+        <label for="quoteWater">Acqua/miscela totale (L) — per dosi per L/100 L</label>
+        <input id="quoteWater" type="number" min="0" step="0.1" value="0">
+      </div>
+      <div>
+        <label for="quotePlants">Numero piante — per dosi/pianta</label>
+        <input id="quotePlants" type="number" min="0" step="1" value="0">
+      </div>
+      <div>
+        <label for="quoteLength">Metri lineari — per siepi/filari</label>
+        <input id="quoteLength" type="number" min="0" step="0.1" value="0">
       </div>
       <div>
         <label for="quoteProductPrice">Costo acquisto prodotto (€/L o €/kg)</label>
@@ -454,7 +542,7 @@ footer{text-align:center;color:#7a8980;font-size:11px;padding:0 14px 25px}
 
 </main>
 
-<footer>Dose Verde · versione 1.4 preventivo</footer>
+<footer>Dose Verde · versione 1.5 multi-trattamento</footer>
 
 <script>
 (function(){
@@ -469,13 +557,13 @@ var defaultProducts=[
     id:'turfene-maturo',
     name:'Turfene Plus — prato dal 2° anno',
     scenario:'Prato dal 2° anno',
-    min:5,max:8,unit:'L_ha',waterMin:400,waterMax:600,photo:''
+    min:5,max:8,unit:'L_ha',waterMin:400,waterMax:600,photo:'',category:'Erbicida',target:'prato_terreno'
   },
   {
     id:'turfene-primo-anno',
     name:"Turfene Plus — 1° anno",
     scenario:"1° anno d'impianto",
-    min:5,max:6,unit:'L_ha',waterMin:400,waterMax:600,photo:''
+    min:5,max:6,unit:'L_ha',waterMin:400,waterMax:600,photo:'',category:'Erbicida',target:'prato_terreno'
   }
 ];
 
@@ -492,9 +580,37 @@ function unitLabel(u){
   var m={
     L_ha:'L/ha',kg_ha:'kg/ha',
     ml_100m2:'ml/100 m²',g_100m2:'g/100 m²',
-    ml_L:'ml/L acqua',g_L:'g/L acqua'
+    ml_L:'ml/L acqua',g_L:'g/L acqua',
+    ml_100L:'ml/100 L acqua',g_100L:'g/100 L acqua',
+    ml_plant:'ml/pianta',g_plant:'g/pianta',
+    ml_m:'ml/m lineare',g_m:'g/m lineare'
   };
   return m[u]||u;
+}
+function inferCategory(activity,name){
+  var t=((activity||'')+' '+(name||'')).toLowerCase();
+  if(t.indexOf('acaric')>=0 && t.indexOf('insett')>=0)return 'Insetticida-acaricida';
+  if(t.indexOf('erbic')>=0 || t.indexOf('diserb')>=0)return 'Erbicida';
+  if(t.indexOf('fungic')>=0)return 'Fungicida';
+  if(t.indexOf('insett')>=0)return 'Insetticida';
+  if(t.indexOf('acaric')>=0)return 'Acaricida';
+  if(t.indexOf('nemat')>=0)return 'Nematocida';
+  if(t.indexOf('mollusch')>=0 || t.indexOf('lumach')>=0)return 'Molluschicida';
+  if(t.indexOf('regolatore')>=0 || t.indexOf('regolazione della crescita')>=0)return 'Regolatore di crescita';
+  if(t.indexOf('concim')>=0 || t.indexOf('fertil')>=0)return 'Concime';
+  if(t.indexOf('biostim')>=0)return 'Biostimolante';
+  return 'Altro';
+}
+function targetLabel(t){
+  var m={prato_terreno:'Prato/terreno',arbusto:'Arbusti/piante',albero:'Alberi',siepe:'Siepe',filare:'Filare',vaso:'Vasi',altro:'Altro'};
+  return m[t]||'Altro';
+}
+function unitMode(u){
+  if(['L_ha','kg_ha','ml_100m2','g_100m2'].indexOf(u)>=0)return 'area';
+  if(['ml_L','g_L','ml_100L','g_100L'].indexOf(u)>=0)return 'water';
+  if(['ml_plant','g_plant'].indexOf(u)>=0)return 'plant';
+  if(['ml_m','g_m'].indexOf(u)>=0)return 'length';
+  return 'area';
 }
 function loadProducts(){
   try{
@@ -543,6 +659,32 @@ function renderProductSelect(preselect){
   if(preselect && products.some(function(p){return p.id===preselect})){
     el('calcProduct').value=preselect;
   }
+  updateCalcInputs();
+}
+function updateCalcInputs(){
+  var p=loadProducts().find(function(x){return x.id===el('calcProduct').value});
+  var mode=p?unitMode(p.unit):'area';
+  ['calcAreaGroup','calcWaterGroup','calcPlantsGroup','calcHedgeGroup','calcPotsGroup'].forEach(function(id){el(id).classList.add('hidden')});
+
+  if(mode==='area')el('calcAreaGroup').classList.remove('hidden');
+  if(mode==='water')el('calcWaterGroup').classList.remove('hidden');
+  if(mode==='plant')el('calcPlantsGroup').classList.remove('hidden');
+  if(mode==='length')el('calcHedgeGroup').classList.remove('hidden');
+
+  if(p && p.target==='vaso' && mode==='plant'){
+    el('calcPlantsGroup').classList.add('hidden');
+    el('calcPotsGroup').classList.remove('hidden');
+  }
+
+  var msg='Calcolo per superficie';
+  if(mode==='water')msg='Calcolo in base al volume di acqua/miscela indicato dall’etichetta';
+  if(mode==='plant')msg='Calcolo per numero di piante/esemplari';
+  if(mode==='length')msg='Calcolo per metri lineari di siepe o filare';
+  if(p){
+    msg='<b>'+esc(p.category||inferCategory(p.activity,p.name))+'</b> · '+esc(targetLabel(p.target||'prato_terreno'))+' · '+msg+
+      ' · dose '+esc(unitLabel(p.unit));
+  }
+  el('calcContext').innerHTML=msg;
 }
 function choose(min,max,mode){
   min=Number(min)||0;max=Number(max)||0;
@@ -550,68 +692,113 @@ function choose(min,max,mode){
   if(mode==='max')return max||min;
   return (min&&max)?(min+max)/2:(min||max);
 }
-function amountFor(p,dose,areaM2,waterL){
+function amountFor(p,dose,ctx){
+  ctx=ctx||{};
+  var areaM2=Number(ctx.areaM2)||0;
+  var waterL=Number(ctx.waterL)||0;
+  var count=Number(ctx.count)||0;
+  var lengthM=Number(ctx.lengthM)||0;
+
   if(p.unit==='L_ha')return {value:dose*(areaM2/10000)*1000,unit:'ml'};
   if(p.unit==='kg_ha')return {value:dose*(areaM2/10000)*1000,unit:'g'};
   if(p.unit==='ml_100m2')return {value:dose*(areaM2/100),unit:'ml'};
   if(p.unit==='g_100m2')return {value:dose*(areaM2/100),unit:'g'};
   if(p.unit==='ml_L')return {value:dose*waterL,unit:'ml'};
   if(p.unit==='g_L')return {value:dose*waterL,unit:'g'};
+  if(p.unit==='ml_100L')return {value:dose*(waterL/100),unit:'ml'};
+  if(p.unit==='g_100L')return {value:dose*(waterL/100),unit:'g'};
+  if(p.unit==='ml_plant')return {value:dose*count,unit:'ml'};
+  if(p.unit==='g_plant')return {value:dose*count,unit:'g'};
+  if(p.unit==='ml_m')return {value:dose*lengthM,unit:'ml'};
+  if(p.unit==='g_m')return {value:dose*lengthM,unit:'g'};
   return {value:0,unit:''};
+}
+function getCalcContext(p){
+  var mode=unitMode(p.unit);
+  var ctx={mode:mode,areaM2:0,waterL:0,count:0,lengthM:0,description:''};
+
+  if(mode==='area'){
+    var raw=Number(el('area').value);
+    if(!(raw>0))throw new Error('Inserisci una superficie valida.');
+    ctx.areaM2=el('areaUnit').value==='ha'?raw*10000:raw;
+    var waterRate=choose(p.waterMin,p.waterMax,el('waterChoice').value);
+    ctx.waterL=waterRate>0?waterRate*(ctx.areaM2/10000):0;
+    ctx.description=fmt(ctx.areaM2,1)+' m²';
+  }else if(mode==='water'){
+    ctx.waterL=Number(el('waterTotal').value);
+    if(!(ctx.waterL>0))throw new Error("Inserisci il volume totale d'acqua/miscela.");
+    ctx.description=fmt(ctx.waterL,1)+' L di acqua/miscela';
+  }else if(mode==='plant'){
+    var usePots=(p.target==='vaso');
+    ctx.count=Number(usePots?el('potCount').value:el('plantCount').value);
+    if(!(ctx.count>0))throw new Error('Inserisci il numero di piante o contenitori.');
+    if(usePots){
+      var sv=Number(el('substrateVolume').value)||0;
+      ctx.description=ctx.count+' vasi'+(sv?' · '+fmt(sv,1)+' L substrato/vaso':'');
+    }else{
+      var h=Number(el('plantHeight').value)||0;
+      var c=Number(el('plantCrown').value)||0;
+      ctx.description=ctx.count+' piante'+(h?' · h '+fmt(h,1)+' m':'')+(c?' · chioma '+fmt(c,1)+' m':'');
+    }
+  }else if(mode==='length'){
+    ctx.lengthM=Number(el('hedgeLength').value);
+    if(!(ctx.lengthM>0))throw new Error('Inserisci i metri lineari.');
+    var hh=Number(el('hedgeHeight').value)||0;
+    var hw=Number(el('hedgeWidth').value)||0;
+    ctx.description=fmt(ctx.lengthM,1)+' m lineari'+(hh?' · h '+fmt(hh,1)+' m':'')+(hw?' · larg. '+fmt(hw,1)+' m':'');
+  }
+  return ctx;
 }
 function calculate(){
   var products=loadProducts();
   var p=products.find(function(x){return x.id===el('calcProduct').value});
   if(!p){alert('Seleziona un prodotto.');return}
 
-  var raw=Number(el('area').value);
-  if(!(raw>0)){alert('Inserisci una superficie valida.');return}
-  var areaM2=el('areaUnit').value==='ha'?raw*10000:raw;
-  var tank=Number(el('tank').value)||0;
+  var ctx;
+  try{ctx=getCalcContext(p);}catch(e){alert(e.message);return}
 
+  var tank=ctx.mode==='water'?(Number(el('tankWater').value)||0):(Number(el('tank').value)||0);
   var dose=choose(p.min,p.max,el('doseChoice').value);
-  var waterRate=choose(p.waterMin,p.waterMax,el('waterChoice').value);
-  var waterL=waterRate>0?waterRate*(areaM2/10000):0;
-
-  if((p.unit==='ml_L'||p.unit==='g_L') && !(waterL>0)){
-    alert("Per questa unità serve anche il volume d'acqua.");
-    return;
-  }
-
-  var q=amountFor(p,dose,areaM2,waterL);
+  var q=amountFor(p,dose,ctx);
   var plan='';
 
-  if(waterL>0 && tank>0){
-    if(waterL<=tank){
-      plan='Prepara <b>'+fmt(waterL,2)+' L</b> di miscela con <b>'+fmt(q.value,1)+' '+q.unit+'</b> di prodotto.';
+  if(ctx.waterL>0 && tank>0){
+    if(ctx.waterL<=tank){
+      plan='Prepara <b>'+fmt(ctx.waterL,2)+' L</b> di miscela con <b>'+fmt(q.value,1)+' '+q.unit+'</b> di prodotto.';
     }else{
-      var full=Math.floor(waterL/tank);
-      var rem=waterL-full*tank;
-      var perTank=q.value*(tank/waterL);
+      var full=Math.floor(ctx.waterL/tank);
+      var rem=ctx.waterL-full*tank;
+      var perTank=q.value*(tank/ctx.waterL);
       plan='Prepara '+full+' '+(full===1?'carico':'carichi')+' da <b>'+fmt(tank,1)+' L</b> con <b>'+fmt(perTank,1)+' '+q.unit+'</b> per carico';
       if(rem>0.05){
-        var remProd=q.value*(rem/waterL);
+        var remProd=q.value*(rem/ctx.waterL);
         plan+=', poi '+fmt(rem,2)+' L con '+fmt(remProd,1)+' '+q.unit;
       }
       plan+='.';
     }
-  }else if(waterL>0){
-    plan='Volume totale di miscela: <b>'+fmt(waterL,2)+' L</b>.';
+  }else if(ctx.waterL>0){
+    plan='Volume totale di miscela: <b>'+fmt(ctx.waterL,2)+' L</b>.';
+  }else if(ctx.mode==='plant'){
+    plan='Dose calcolata per <b>'+fmt(ctx.count,0)+' esemplari</b>. Altezza e dimensione della chioma sono descrittive e non modificano la dose se l’etichetta non lo prevede.';
+  }else if(ctx.mode==='length'){
+    plan='Dose calcolata per <b>'+fmt(ctx.lengthM,1)+' m lineari</b>.';
   }else{
-    plan="Prodotto totale calcolato; il volume d'acqua non è salvato per questo prodotto.";
+    plan="Prodotto totale calcolato; il volume d'acqua non è specificato per questo impiego.";
   }
 
   var box=el('resultBox');
   box.innerHTML=
-    '<div class="muted">'+esc(p.name)+' · '+fmt(areaM2,1)+' m²</div>'+
+    '<div class="muted">'+esc(p.name)+' · '+esc(ctx.description)+'</div>'+
     '<div class="big">'+fmt(q.value,1)+' '+q.unit+'</div>'+
     '<div class="muted">prodotto totale</div>'+
     '<hr>'+
-    '<div><span class="pill">Dose '+fmt(dose,2)+' '+unitLabel(p.unit)+'</span>'+
-    (waterL?'<span class="pill">'+fmt(waterL,2)+' L miscela</span>':'')+'</div>'+
+    '<div><span class="pill">'+esc(p.category||inferCategory(p.activity,p.name))+'</span>'+
+    '<span class="pill">Dose '+fmt(dose,2)+' '+unitLabel(p.unit)+'</span>'+
+    (ctx.waterL?'<span class="pill">'+fmt(ctx.waterL,2)+' L miscela</span>':'')+'</div>'+
     '<div style="margin-top:10px;line-height:1.55">'+plan+'</div>';
   box.classList.remove('hidden');
 }
+
 function renderArchive(){
   var q=el('search').value.trim().toLowerCase();
   var products=loadProducts()
@@ -634,7 +821,7 @@ function renderArchive(){
     return '<div class="product">'+
       '<div class="archive-main">'+thumb+
       '<div><strong>'+esc(p.name)+'</strong>'+
-      '<div class="muted">'+esc(p.scenario||'')+(p.registration?' · Reg. '+esc(p.registration):'')+'</div>'+
+      '<div class="muted">'+esc(p.category||inferCategory(p.activity,p.name))+' · '+esc(targetLabel(p.target||'prato_terreno'))+(p.scenario?' · '+esc(p.scenario):'')+(p.registration?' · Reg. '+esc(p.registration):'')+'</div>'+
       '<div>'+info+'</div></div></div>'+
       '<div class="actions">'+
       '<button class="btn small secondary" type="button" data-action="edit" data-id="'+esc(p.id)+'">Apri</button>'+
@@ -646,6 +833,8 @@ function resetForm(){
   el('editId').value='';
   el('pName').value='';
   el('pScenario').value='';
+  el('pCategory').value='Erbicida';
+  el('pTarget').value='prato_terreno';
   el('pUnit').value='L_ha';
   el('pMin').value='';
   el('pMax').value='';
@@ -679,6 +868,8 @@ function editProduct(id){
   el('editId').value=p.id;
   el('pName').value=p.name||'';
   el('pScenario').value=p.scenario||'';
+  el('pCategory').value=p.category||inferCategory(p.activity,p.name);
+  el('pTarget').value=p.target||'prato_terreno';
   el('pUnit').value=p.unit||'L_ha';
   el('pMin').value=p.min!=null?p.min:'';
   el('pMax').value=p.max!=null?p.max:'';
@@ -718,6 +909,8 @@ function saveProduct(){
     id:id,
     name:name,
     scenario:el('pScenario').value.trim(),
+    category:el('pCategory').value,
+    target:el('pTarget').value,
     unit:el('pUnit').value,
     min:hasDose?Number(minText):null,
     max:hasDose?Number(maxText):null,
@@ -832,6 +1025,8 @@ function savePhotoDraft(){
     id:id,
     name:typedName || (existing&&existing.name) || fallbackName,
     scenario:el('pScenario').value.trim() || (existing&&existing.scenario) || '',
+    category:el('pCategory').value || (existing&&existing.category) || inferCategory(el('pActivity').value,typedName),
+    target:el('pTarget').value || (existing&&existing.target) || 'prato_terreno',
     unit:el('pUnit').value || (existing&&existing.unit) || 'L_ha',
     min:(el('pMin').value!==''?Number(el('pMin').value):(existing&&existing.min!=null?existing.min:null)),
     max:(el('pMax').value!==''?Number(el('pMax').value):(existing&&existing.max!=null?existing.max:null)),
@@ -945,6 +1140,7 @@ function applyOfficial(index){
   el('pHolder').value=p.holder||'';
   el('pActive').value=p.active||'';
   el('pActivity').value=[p.activity,p.formulation].filter(Boolean).join(' · ');
+  el('pCategory').value=inferCategory(p.activity,p.name);
   el('searchCommercial').value=p.name||'';
   el('searchRegistration').value=p.registration||'';
   el('officialStatus').innerHTML='Dati anagrafici applicati. <span class="source-badge">Ministero Salute</span>';
@@ -980,20 +1176,41 @@ function parseOCRText(text){
 }
 function applyParsedDose(c){
   if(!c)return;
-  var area=c.area||'';
-  var u=c.unit||'';
-  if(area.indexOf('ha')>=0 || area.indexOf('ettar')>=0){
+  var basis=(c.area||c.basis||'').toLowerCase();
+  var u=(c.unit||'').toLowerCase();
+
+  if(basis.indexOf('ha')>=0 || basis.indexOf('ettar')>=0){
     if(u==='l'||u==='litri')el('pUnit').value='L_ha';
     else if(u==='kg')el('pUnit').value='kg_ha';
-    else if(u==='ml'){ el('pUnit').value='L_ha'; c.a/=1000;c.b/=1000; }
-    else if(u==='g'){ el('pUnit').value='kg_ha'; c.a/=1000;c.b/=1000; }
-  }else{
+    else if(u==='ml'){el('pUnit').value='L_ha';c.a/=1000;c.b/=1000;}
+    else if(u==='g'){el('pUnit').value='kg_ha';c.a/=1000;c.b/=1000;}
+    el('pTarget').value='prato_terreno';
+  }else if(/100\s*(?:m2|m²|mq)/.test(basis)){
     if(u==='ml')el('pUnit').value='ml_100m2';
     if(u==='g')el('pUnit').value='g_100m2';
+    el('pTarget').value='prato_terreno';
+  }else if(/100\s*l/.test(basis)){
+    if(u==='ml')el('pUnit').value='ml_100L';
+    if(u==='g')el('pUnit').value='g_100L';
+  }else if(basis==='l' || basis.indexOf('litro')>=0 || basis.indexOf('acqua')>=0){
+    if(u==='ml')el('pUnit').value='ml_L';
+    if(u==='g')el('pUnit').value='g_L';
+  }else if(/piant|esemplar|alber|arbust|vaso/.test(basis)){
+    if(u==='ml')el('pUnit').value='ml_plant';
+    if(u==='g')el('pUnit').value='g_plant';
+    if(/alber/.test(basis))el('pTarget').value='albero';
+    else if(/vaso/.test(basis))el('pTarget').value='vaso';
+    else el('pTarget').value='arbusto';
+  }else if(/metro|metri|m lineare|lineare|siepe|filare/.test(basis)){
+    if(u==='ml')el('pUnit').value='ml_m';
+    if(u==='g')el('pUnit').value='g_m';
+    if(/filare/.test(basis))el('pTarget').value='filare'; else el('pTarget').value='siepe';
   }
+
   el('pMin').value=Number(c.a.toFixed(4));
   el('pMax').value=Number(c.b.toFixed(4));
 }
+
 async function runOCR(){
   if(!currentPhoto){alert('Prima scatta o scegli una foto.');return}
   el('ocrPanel').classList.remove('hidden');
@@ -1212,22 +1429,41 @@ function renderQuoteProducts(preselect){
 }
 function quoteProductQuantity(){
   var p=quoteEligibleProducts().find(function(x){return x.id===el('quoteProduct').value});
-  if(!p)return {p:null,qtyBase:0,qtyUnit:''};
+  if(!p)return {p:null,qtyBase:0,qtyUnit:'',description:''};
 
-  var area=Number(el('quoteArea').value)||0;
   var dose=choose(p.min,p.max,el('quoteDoseChoice').value);
-  var q=amountFor(p,dose,area,0);
+  var mode=unitMode(p.unit);
+  var ctx={areaM2:0,waterL:0,count:0,lengthM:0};
 
-  // Convert amountFor result to commercial base unit L/kg where possible.
-  if(q.unit==='ml') return {p:p,qtyBase:q.value/1000,qtyUnit:'L',dose:dose,display:q.value+' ml'};
-  if(q.unit==='g') return {p:p,qtyBase:q.value/1000,qtyUnit:'kg',dose:dose,display:q.value+' g'};
-  return {p:p,qtyBase:q.value,qtyUnit:q.unit,dose:dose,display:q.value+' '+q.unit};
+  if(mode==='area'){
+    ctx.areaM2=Number(el('quoteArea').value)||0;
+    if(!(ctx.areaM2>0))return {p:p,error:'Inserisci la superficie nel Preventivo.'};
+  }else if(mode==='water'){
+    ctx.waterL=Number(el('quoteWater').value)||0;
+    if(!(ctx.waterL>0))return {p:p,error:"Inserisci i litri d'acqua/miscela nel Preventivo."};
+  }else if(mode==='plant'){
+    ctx.count=Number(el('quotePlants').value)||0;
+    if(!(ctx.count>0))return {p:p,error:'Inserisci il numero di piante nel Preventivo.'};
+  }else if(mode==='length'){
+    ctx.lengthM=Number(el('quoteLength').value)||0;
+    if(!(ctx.lengthM>0))return {p:p,error:'Inserisci i metri lineari nel Preventivo.'};
+  }
+
+  var q=amountFor(p,dose,ctx);
+  var description=mode==='area'?fmt(ctx.areaM2,1)+' m²':
+    mode==='water'?fmt(ctx.waterL,1)+' L miscela':
+    mode==='plant'?fmt(ctx.count,0)+' piante':
+    fmt(ctx.lengthM,1)+' m lineari';
+
+  if(q.unit==='ml')return {p:p,qtyBase:q.value/1000,qtyUnit:'L',dose:dose,display:q.value+' ml',description:description};
+  if(q.unit==='g')return {p:p,qtyBase:q.value/1000,qtyUnit:'kg',dose:dose,display:q.value+' g',description:description};
+  return {p:p,qtyBase:q.value,qtyUnit:q.unit,dose:dose,display:q.value+' '+q.unit,description:description};
 }
+
 function calculateQuote(){
   var pq=quoteProductQuantity();
   if(!pq.p){alert('Seleziona un prodotto completo.');return}
-  var area=Number(el('quoteArea').value)||0;
-  if(!(area>0)){alert('Inserisci una superficie valida.');return}
+  if(pq.error){alert(pq.error);return}
 
   var productUnitPrice=Number(el('quoteProductPrice').value)||0;
   var productCost=pq.qtyBase*productUnitPrice;
@@ -1256,13 +1492,15 @@ function calculateQuote(){
   var final=beforeTax+tax;
 
   localStorage.setItem('dose_verde_quote_defaults',JSON.stringify({
-    productPrice:productUnitPrice,hours:hours,operators:operators,laborRate:laborRate,
+    productPrice:productUnitPrice,quoteArea:Number(el('quoteArea').value)||0,quoteWater:Number(el('quoteWater').value)||0,
+    quotePlants:Number(el('quotePlants').value)||0,quoteLength:Number(el('quoteLength').value)||0,
+    hours:hours,operators:operators,laborRate:laborRate,
     travel:travel,equipment:equipment,disposal:disposal,other:other,minimum:minimum,
     general:generalPct,profit:profitPct,vat:vatPct
   }));
 
   el('quoteResult').innerHTML=
-    '<div class="muted">'+esc(pq.p.name)+' · '+fmt(area,1)+' m²</div>'+
+    '<div class="muted">'+esc(pq.p.name)+' · '+esc(pq.description)+'</div>'+
     '<div class="quote-total">'+money(final)+'</div>'+
     '<div class="muted">prezzo cliente calcolato</div>'+
     '<hr>'+
@@ -1284,6 +1522,10 @@ function loadQuoteDefaults(){
   try{
     var d=JSON.parse(localStorage.getItem('dose_verde_quote_defaults')||'{}');
     if(d.productPrice!=null)el('quoteProductPrice').value=d.productPrice;
+    if(d.quoteArea!=null)el('quoteArea').value=d.quoteArea;
+    if(d.quoteWater!=null)el('quoteWater').value=d.quoteWater;
+    if(d.quotePlants!=null)el('quotePlants').value=d.quotePlants;
+    if(d.quoteLength!=null)el('quoteLength').value=d.quoteLength;
     if(d.hours!=null)el('quoteHours').value=d.hours;
     if(d.operators!=null)el('quoteOperators').value=d.operators;
     if(d.laborRate!=null)el('quoteLaborCost').value=d.laborRate;
@@ -1364,6 +1606,7 @@ function wire(){
   el('plusBtn').addEventListener('click',newProduct);
   el('newFromArchive').addEventListener('click',newProduct);
   el('calcBtn').addEventListener('click',calculate);
+  el('calcProduct').addEventListener('change',updateCalcInputs);
   el('saveBtn').addEventListener('click',saveProduct);
   el('deleteBtn').addEventListener('click',deleteProduct);
   el('pPhoto').addEventListener('change',photoChanged);
@@ -1427,7 +1670,7 @@ function start(){
   renderProductSelect();
   renderQuoteProducts();
   loadQuoteDefaults();
-  el('status').textContent='Pronta · versione 1.4 preventivo';
+  el('status').textContent='Pronta · versione 1.5 multi-trattamento';
 }
 
 window.addEventListener('DOMContentLoaded',start);
