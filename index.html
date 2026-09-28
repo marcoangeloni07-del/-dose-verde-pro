@@ -322,8 +322,8 @@ footer{text-align:center;color:#7a8980;font-size:11px;padding:0 14px 25px}
     <div class="assist-box" style="margin-top:14px">
       <div class="assist-title">🌐 Scheda tecnica / etichetta online</div>
       <div class="muted">
-        Cerca possibili schede online partendo dal nome e dal numero di registrazione.
-        Prima di applicare dosi o volumi, controlla sempre la fonte proposta.
+        Cerca prima l'etichetta autorizzata collegata al numero di registrazione e, solo come seconda scelta,
+        altre fonti tecniche pertinenti. Forum, social e risultati generici vengono esclusi.
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
         <button id="findTechnicalBtn" class="btn secondary small" type="button">Trova schede online</button>
@@ -351,7 +351,7 @@ footer{text-align:center;color:#7a8980;font-size:11px;padding:0 14px 25px}
 </section>
 </main>
 
-<footer>Dose Verde · versione 1.3.2 auto-dati</footer>
+<footer>Dose Verde · versione 1.3.3 fonti affidabili</footer>
 
 <script>
 (function(){
@@ -939,14 +939,18 @@ async function findTechnical(autoMode){
   el('technicalResults').innerHTML='';
   setBusy('technicalStatus','Ricerca di possibili schede tecniche…');
   try{
-    var data=await apiJson('/api/find-technical?'+new URLSearchParams({q:name,reg:reg}).toString());
+    var holder=el('pHolder').value.trim();
+    var activity=el('pActivity').value.trim();
+    var data=await apiJson('/api/find-technical?'+new URLSearchParams({q:name,reg:reg,holder:holder,activity:activity}).toString());
     var items=data.results||[];
     el('technicalStatus').textContent=items.length
       ? 'Fonti candidate trovate. Apri o analizza solo quelle pertinenti al prodotto.'
       : 'Nessuna scheda trovata automaticamente. Puoi usare “Apri ricerca web”.';
     el('technicalResults').innerHTML=items.map(function(x,i){
+      var badge=x.sourceType?'<span class="source-badge">'+esc(x.sourceType)+'</span>':'';
       return '<div class="tech-card">'+
         '<b>'+esc(x.title||'Fonte online')+'</b>'+
+        '<div style="margin-top:4px">'+badge+'</div>'+
         '<div class="tech-url">'+esc(x.url||'')+'</div>'+
         '<div style="display:flex;gap:7px;flex-wrap:wrap;margin-top:8px">'+
         '<button class="btn small secondary" type="button" data-tech-open="'+i+'">Apri</button>'+
@@ -959,7 +963,7 @@ async function findTechnical(autoMode){
     if(items.length){
       var first=items[0];
       var second=items.length>1?items[1]:null;
-      var strong=(Number(first.score||0)>=7 && (!second || Number(first.score||0)>=Number(second.score||0)+3));
+      var strong=first.trusted===true || (Number(first.score||0)>=12 && (!second || Number(first.score||0)>=Number(second.score||0)+4));
       if(items.length===1 || strong){
         el('technicalStatus').textContent='Fonte probabile trovata. Analisi automatica in corso…';
         await analyzeUrl(first.url,true);
@@ -1155,7 +1159,7 @@ function start(){
   }
   wire();
   renderProductSelect();
-  el('status').textContent='Pronta · versione 1.3.2 auto-dati';
+  el('status').textContent='Pronta · versione 1.3.3 fonti affidabili';
 }
 
 window.addEventListener('DOMContentLoaded',start);

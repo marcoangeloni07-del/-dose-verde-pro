@@ -1,19 +1,22 @@
-DOSE VERDE 1.3.2 — COMPILAZIONE AUTOMATICA DATI TECNICI
+DOSE VERDE 1.3.3 — FONTI AFFIDABILI
 
-NOVITÀ
-- dopo aver scelto il prodotto dal database del Ministero, parte automaticamente la ricerca della scheda tecnica
-- se viene trovata una sola fonte molto probabile, l'app prova ad analizzarla automaticamente
-- riconosce intervalli e dosi fisse (es. 5–8 L/ha oppure 5 L/ha)
-- prova a distinguere dose prodotto e volume d'acqua
-- prova a riconoscere lo scenario (es. 1° anno, dal 2° anno, tappeti erbosi)
-- se trova un solo scenario, compila automaticamente dose, unità, acqua e scenario
-- se trova più scenari, mostra pulsanti tra cui scegliere
-- acqua minima/massima NON è più obbligatoria
-- se non è stata trovata una dose, “Salva prodotto” salva automaticamente una BOZZA invece di bloccare il salvataggio
-- le bozze restano escluse dal calcolatore finché non hanno una dose
+Correzione principale:
+la ricerca tecnica non accetta più risultati generici solo perché il motore di ricerca li restituisce.
+
+NUOVO ORDINE DI RICERCA
+1. Se esiste un numero di registrazione, tenta direttamente l'etichetta autorizzata nel database BDF/WinBDF:
+   https://www.winbdf.it/bdf-archivi/etichette1/NUMERO.pdf
+2. Solo se serve, effettua una ricerca web molto più restrittiva.
+3. I risultati web devono contenere il prodotto/numero di registrazione E segnali tecnici
+   (etichetta, scheda tecnica, PDF, fitosanitario, ecc.).
+4. Forum, social, marketplace e siti generici vengono esclusi.
+5. Le fonti Ministero Salute, Gazzetta Ufficiale e WinBDF ricevono priorità.
+
+Per Turfene Plus (reg. 15291), la ricerca dovrebbe proporre direttamente:
+https://www.winbdf.it/bdf-archivi/etichette1/15291.pdf
 
 AGGIORNAMENTO
-Sostituisci nella root del repository i 6 file:
+Sostituisci nella root del repository:
 - index.html
 - search.js
 - find-technical.js
@@ -21,8 +24,4 @@ Sostituisci nella root del repository i 6 file:
 - package.json
 - vercel.json
 
-Poi Commit changes e attendi il deployment Vercel.
-
-SICUREZZA
-I dati tecnici estratti dal web vengono precompilati, ma il salvataggio da parte dell'utente costituisce la conferma.
-Controlla che fonte, prodotto, numero di registrazione e impiego corrispondano prima di salvare.
+Commit changes e attendi il redeploy Vercel.
