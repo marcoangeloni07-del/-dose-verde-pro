@@ -1,39 +1,28 @@
-DOSE VERDE 1.5 — CALCOLATORE MULTI-TRATTAMENTO
+DOSE VERDE 1.5.1 — PDF LOCALE / FALLBACK HTTP 403
 
-NOVITÀ PRINCIPALI
-- categoria prodotto: erbicida, fungicida, insetticida, acaricida, ecc.
-- tipo di bersaglio: prato/terreno, arbusti, alberi, siepi, filari, vasi
-- il tipo di calcolo cambia automaticamente in base all'unità indicata dall'etichetta
+PROBLEMA RISOLTO
+Alcuni siti ufficiali (per esempio Bayer CropScience) permettono al normale browser di aprire un PDF,
+ma bloccano le richieste automatiche provenienti da server cloud come Vercel con HTTP 403.
+Non è un errore del PDF né dell'URL.
 
-UNITÀ SUPPORTATE
-- L/ha, kg/ha
-- ml/100 m², g/100 m²
-- ml/L acqua, g/L acqua
-- ml/100 L acqua, g/100 L acqua
-- ml/pianta, g/pianta
-- ml/metro lineare, g/metro lineare
+NUOVA FUNZIONE
+Nella sezione "Scheda tecnica / etichetta online" trovi ora:
+- URL + Analizza (come prima)
+- Carica PDF + Analizza PDF caricato
 
-CALCOLO
-- per superficie: m²/ha
-- per acqua: litri totali di miscela
-- per pianta: numero di esemplari
-- per siepe/filare: metri lineari
-- altezza e diametro chioma possono essere registrati come dati del bersaglio ma NON modificano automaticamente la dose,
-  a meno che l'etichetta prescriva una regola specifica. In questo modo non vengono inventate conversioni agronomiche.
+Se il sito risponde 403:
+1. apri il PDF in Safari;
+2. salvalo in File;
+3. torna a Dose Verde;
+4. scegli il PDF;
+5. premi "Analizza PDF caricato".
 
-RICERCA
-- resta attiva la ricerca Ministero
-- resta attiva la ricerca di etichette/schede
-- l'analizzatore riconosce anche dosi per litro, 100 L, pianta e metro lineare
-- la categoria viene proposta automaticamente dall'attività ufficiale del prodotto
+Il PDF viene letto direttamente nel browser dell'iPad/iPhone e non viene richiesto nuovamente al sito Bayer.
+L'app prova poi a estrarre dosi, volume d'acqua, base di calcolo e scenari come nella normale analisi online.
 
-PREVENTIVO
-- supporta ora superficie, litri di miscela, numero piante e metri lineari
+Se il PDF è una scansione senza testo, usa invece la foto + OCR.
 
-COMPATIBILITÀ
-I prodotti già salvati continuano a funzionare. Se non hanno categoria/bersaglio, Dose Verde li interpreta con valori compatibili con le versioni precedenti.
-
-AGGIORNAMENTO GITHUB
+AGGIORNAMENTO
 Sostituisci nella root:
 - index.html
 - search.js
@@ -42,5 +31,4 @@ Sostituisci nella root:
 - tariffe.js
 - package.json
 - vercel.json
-
-Poi Commit changes e attendi il deployment Vercel.
+Poi Commit changes e attendi il redeploy.

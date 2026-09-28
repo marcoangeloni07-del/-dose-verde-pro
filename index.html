@@ -426,6 +426,16 @@ footer{text-align:center;color:#7a8980;font-size:11px;padding:0 14px 25px}
         <input id="technicalUrl" type="url" placeholder="https://...">
         <button id="analyzeUrlBtn" class="btn secondary" type="button">Analizza</button>
       </div>
+
+      <div class="filebox" style="margin-top:10px;text-align:left">
+        <label for="technicalFile">Se il sito blocca l'analisi automatica (es. HTTP 403)</label>
+        <input id="technicalFile" type="file" accept="application/pdf,.pdf">
+        <div class="muted" style="margin-top:6px">
+          Apri il PDF in Safari, salvalo sul dispositivo e caricalo qui. Il testo viene letto direttamente nel browser, senza chiedere al sito esterno di inviarlo a Vercel.
+        </div>
+        <button id="analyzeFileBtn" class="btn secondary small" style="margin-top:8px" type="button">Analizza PDF caricato</button>
+      </div>
+
       <div id="analysisResult"></div>
     </div>
 
@@ -542,7 +552,7 @@ footer{text-align:center;color:#7a8980;font-size:11px;padding:0 14px 25px}
 
 </main>
 
-<footer>Dose Verde · versione 1.5 multi-trattamento</footer>
+<footer>Dose Verde · versione 1.5.1 PDF locale</footer>
 
 <script>
 (function(){
@@ -851,6 +861,7 @@ function resetForm(){
   el('technicalResults').innerHTML='';
   el('technicalStatus').textContent='';
   el('technicalUrl').value='';
+  el('technicalFile').value='';
   el('analysisResult').innerHTML='';
   el('ocrPanel').classList.add('hidden');
   el('ocrText').textContent='';
@@ -1309,9 +1320,134 @@ async function analyzeUrl(url,autoMode){
     renderAnalysis(data);
     autoApplyAnalysis(data);
   }catch(e){
-    el('technicalStatus').textContent='Non riesco ad analizzare questa fonte: '+e.message;
+    var msg=e.message||'Errore';
+    if(/403|forbidden/i.test(msg)){
+      el('technicalStatus').textContent='Il sito blocca le richieste automatiche dal server (HTTP 403). Apri il PDF in Safari, salvalo e usa “Analizza PDF caricato” qui sotto.';
+    }else{
+      el('technicalStatus').textContent='Non riesco ad analizzare questa fonte: '+msg;
+    }
   }
 }
+
+async function loadPdfJs(){
+  if(window.pdfjsLib)return;
+  await new Promise(function(resolve,reject){
+    var s=document.createElement('script');
+    s.src='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+    s.onload=function(){
+      try{
+        pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+        resolve();
+      }catch(e){reject(e)}
+    };
+    s.onerror=function(){reject(new Error('Non riesco a caricare il lettore PDF.'))};
+    document.head.appendChild(s);
+  });
+}
+async function extractPdfText(file){
+  await loadPdfJs();
+  var data=await file.arrayBuffer();
+  var pdf=await pdfjsLib.getDocument({data:data}).promise;
+  var chunks=[];
+  var maxPages=Math.min(pdf.numPages,80);
+  for(var p=1;p<=maxPages;p++){
+    var page=await pdf.getPage(p);
+    var tc=await page.getTextContent();
+    var line=tc.items.map(function(x){return x.str||''}).join(' ');
+    chunks.push(line);
+  }
+  return chunks.join('\n');
+}
+function localScenario(context){
+  var lc=String(context||'').toLowerCase();
+  if(/(?:1°|1º|primo)\s*anno|anno\s+di\s+impianto|nuov[oi]\s+impiant/.test(lc))return "1° anno d'impianto";
+  if(/dal\s+(?:2°|2º|secondo)\s+anno|anni?\s+successiv/.test(lc))return 'Dal 2° anno';
+  if(/tappet[io]\s+erbos|prat[oi]|turf/.test(lc))return 'Tappeti erbosi';
+  if(/siepe|siepi/.test(lc))return 'Siepe';
+  if(/alber|arbust|ornamental/.test(lc))return 'Piante ornamentali';
+  if(/vite|fruttif|melo|pero|pesco|agrum|pomodoro|melanzana|cavol|lattug/.test(lc)){
+    var bit=(String(context||'').split(/[.;:]/).find(function(x){
+      return /vite|fruttif|melo|pero|pesco|agrum|pomodoro|melanzana|cavol|lattug/i.test(x);
+    })||'Impiego rilevato').trim();
+    return bit.slice(0,100);
+  }
+  return '';
+}
+function analyzeLocalText(text){
+  var compact=String(text||'').replace(/\s+/g,' ').trim();
+  var dose=[],water=[];
+  function add(arr,item){
+    var key=[item.min,item.max,item.unit,item.area,item.scenario].join('|');
+    if(!arr.some(function(x){return [x.min,x.max,x.unit,x.area,x.scenario].join('|')===key}))arr.push(item);
+  }
+
+  var re=/(\d+(?:[.,]\d+)?)\s*(?:(?:-|–|—|÷|\ba\b|\bfino\s+a\b)\s*(\d+(?:[.,]\d+)?))?\s*(ml|l|litri|kg|g)\s*(?:\/|per)\s*(ha|ettaro|ettari|100\s*(?:m²|m2|mq)|100\s*l(?:itri)?|l(?:itro|itri)?\s*(?:d['’]acqua|acqua)?|pianta|piante|esemplare|esemplari|albero|alberi|arbusto|arbusti|vaso|vasi|m(?:etro|etri)?\s*(?:lineare|lineari)?)/gi;
+  var m;
+  while((m=re.exec(compact))!==null){
+    var min=Number(m[1].replace(',','.'));
+    var max=m[2]?Number(m[2].replace(',','.')):min;
+    var before=compact.slice(Math.max(0,m.index-240),m.index);
+    var after=compact.slice(re.lastIndex,Math.min(compact.length,re.lastIndex+240));
+    var ctx=(before+' '+m[0]+' '+after).replace(/\s+/g,' ').trim();
+    var lc=ctx.toLowerCase();
+    var item={
+      min:min,max:max,unit:m[3].toLowerCase(),area:m[4].toLowerCase(),basis:m[4].toLowerCase(),
+      label:(min===max?String(min):min+'–'+max)+' '+m[3]+'/'+m[4],
+      context:ctx.slice(0,500),
+      scenario:localScenario(ctx),
+      pos:m.index
+    };
+    var waterWords=/volume\s*(?:d['’]acqua|acqua)|acqua|miscela|bagnatura|diluizione|irrorazione/.test(lc);
+    var isArea=/ha|ettar|100\s*(?:m²|m2|mq)/i.test(item.area);
+    if(waterWords && isArea && (item.unit==='l'||item.unit==='litri') && item.min>=20)add(water,item);
+    else add(dose,item);
+  }
+
+  var scenarios=dose.map(function(d){
+    var best=null;
+    if(water.length===1)best=water[0];
+    else if(water.length>1){
+      best=water.slice().sort(function(a,b){return Math.abs(a.pos-d.pos)-Math.abs(b.pos-d.pos)})[0]||null;
+      if(best && Math.abs(best.pos-d.pos)>1800)best=null;
+    }
+    return {
+      scenario:d.scenario || (best&&best.scenario) || (dose.length===1?'Impiego rilevato':''),
+      dose:Object.assign({},d),
+      water:best?Object.assign({},best):null,
+      context:d.context
+    };
+  });
+
+  dose.forEach(function(x){delete x.pos});
+  water.forEach(function(x){delete x.pos});
+  scenarios.forEach(function(s){
+    if(s.dose)delete s.dose.pos;
+    if(s.water)delete s.water.pos;
+  });
+
+  var key=compact.toLowerCase().search(/dose|dosi|dosaggio|modalit[aà].{0,30}impiego|impiego|volume.{0,15}acqua/);
+  var start=key>=0?Math.max(0,key-260):0;
+  var snippet=compact.slice(start,start+1200);
+
+  return {source:'PDF caricato localmente',doseCandidates:dose.slice(0,16),waterCandidates:water.slice(0,16),scenarios:scenarios.slice(0,12),snippet:snippet};
+}
+async function analyzeLocalPdf(){
+  var file=el('technicalFile').files[0];
+  if(!file){alert('Scegli prima un file PDF.');return}
+  el('analysisResult').innerHTML='';
+  setBusy('technicalStatus','Lettura del PDF sul dispositivo…');
+  try{
+    var text=await extractPdfText(file);
+    if(!text || text.trim().length<30)throw new Error('Il PDF non contiene testo leggibile. Potrebbe essere una scansione; in quel caso usa una foto e OCR.');
+    var data=analyzeLocalText(text);
+    el('technicalStatus').textContent='PDF letto localmente. Verifica i dati proposti.';
+    renderAnalysis(data);
+    autoApplyAnalysis(data);
+  }catch(e){
+    el('technicalStatus').textContent='Non riesco a leggere il PDF caricato: '+e.message;
+  }
+}
+
 function scenarioLabel(c){
   return (c&&c.scenario)||'Impiego rilevato';
 }
@@ -1320,8 +1456,9 @@ function renderAnalysis(data){
   var doses=data.doseCandidates||[];
   var waters=data.waterCandidates||[];
 
+  var sourceBadge=(data.source==='PDF caricato localmente')?'PDF locale · verifica prima di salvare':'Web · verifica prima di salvare';
   var html='<div class="review"><strong>Dati tecnici trovati</strong>'+
-    '<div><span class="source-badge">Web · verifica prima di salvare</span></div>';
+    '<div><span class="source-badge">'+esc(sourceBadge)+'</span></div>';
 
   if(scenarios.length>1){
     html+='<div class="muted" style="margin-top:8px"><b>Più impieghi/scenari rilevati:</b> scegli quello che corrisponde al tuo caso.</div>';
@@ -1617,6 +1754,7 @@ function wire(){
   el('findTechnicalBtn').addEventListener('click',findTechnical);
   el('openWebSearchBtn').addEventListener('click',openWebSearch);
   el('analyzeUrlBtn').addEventListener('click',function(){analyzeUrl();});
+  el('analyzeFileBtn').addEventListener('click',analyzeLocalPdf);
   el('officialResults').addEventListener('click',function(e){
     var b=e.target.closest('[data-official-index]');
     if(b)applyOfficial(b.getAttribute('data-official-index'));
@@ -1670,7 +1808,7 @@ function start(){
   renderProductSelect();
   renderQuoteProducts();
   loadQuoteDefaults();
-  el('status').textContent='Pronta · versione 1.5 multi-trattamento';
+  el('status').textContent='Pronta · versione 1.5.1 PDF locale';
 }
 
 window.addEventListener('DOMContentLoaded',start);
