@@ -68,6 +68,17 @@ hr{border:0;border-top:1px solid var(--line);margin:14px 0}
 .note{background:#fff8df;border:1px solid #e4cb73;border-radius:12px;padding:11px;font-size:12px;line-height:1.45}
 footer{text-align:center;color:#7a8980;font-size:11px;padding:0 14px 25px}
 
+.quote-total{font-size:34px;font-weight:950;letter-spacing:-1px}
+.money-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+@media(max-width:620px){.money-grid{grid-template-columns:1fr}}
+.quote-line{display:flex;justify-content:space-between;gap:12px;padding:7px 0;border-bottom:1px solid var(--line)}
+.quote-line:last-child{border-bottom:0}
+.tariff-result{border:1px solid var(--line);border-radius:13px;padding:10px;margin-top:8px;background:#fff}
+.tariff-code{font-size:11px;font-weight:900;color:var(--green)}
+.tariff-desc{font-size:12px;line-height:1.4;margin-top:3px}
+.tariff-meta{font-size:11px;color:var(--muted);margin-top:5px}
+
+
 .assist-box{
   margin:0 0 14px;border:1px solid #cfe0d5;border-radius:16px;
   background:#f7fbf8;padding:13px
@@ -132,6 +143,7 @@ footer{text-align:center;color:#7a8980;font-size:11px;padding:0 14px 25px}
       <button type="button" data-screen="calc" class="active">Calcola</button>
       <button type="button" data-screen="archive">Archivio</button>
       <button type="button" data-screen="product">Nuovo prodotto</button>
+      <button type="button" data-screen="quote">Preventivo</button>
     </nav>
   </div>
 </header>
@@ -349,9 +361,100 @@ footer{text-align:center;color:#7a8980;font-size:11px;padding:0 14px 25px}
     <button id="deleteBtn" class="btn full danger hidden" style="margin-top:8px" type="button">Elimina prodotto</button>
   </div>
 </section>
+
+<section id="screen-quote" class="screen">
+  <div class="card">
+    <h2>Preventivo intervento</h2>
+    <div class="muted">
+      Calcola il costo diretto e il prezzo cliente. I riferimenti tariffari sono separati dal tuo prezzo reale e servono come confronto.
+    </div>
+
+    <h3>Dati intervento</h3>
+    <div class="grid2">
+      <div>
+        <label for="quoteProduct">Prodotto</label>
+        <select id="quoteProduct"></select>
+      </div>
+      <div>
+        <label for="quoteDoseChoice">Dose usata</label>
+        <select id="quoteDoseChoice">
+          <option value="min">Minima</option>
+          <option value="mid" selected>Media</option>
+          <option value="max">Massima</option>
+        </select>
+      </div>
+      <div>
+        <label for="quoteArea">Superficie (m²)</label>
+        <input id="quoteArea" type="number" min="0" step="0.1" value="150">
+      </div>
+      <div>
+        <label for="quoteProductPrice">Costo acquisto prodotto (€/L o €/kg)</label>
+        <input id="quoteProductPrice" type="number" min="0" step="0.01" value="0">
+      </div>
+    </div>
+
+    <h3>Costi operativi</h3>
+    <div class="money-grid">
+      <div><label for="quoteHours">Ore previste</label><input id="quoteHours" type="number" min="0" step="0.1" value="1"></div>
+      <div><label for="quoteOperators">N. operatori</label><input id="quoteOperators" type="number" min="1" step="1" value="1"></div>
+      <div><label for="quoteLaborCost">Costo manodopera interno €/h per operatore</label><input id="quoteLaborCost" type="number" min="0" step="0.01" value="20"></div>
+      <div><label for="quoteTravel">Trasferta / uscita (€)</label><input id="quoteTravel" type="number" min="0" step="0.01" value="0"></div>
+      <div><label for="quoteEquipment">Attrezzature / noli (€)</label><input id="quoteEquipment" type="number" min="0" step="0.01" value="0"></div>
+      <div><label for="quoteDisposal">Smaltimento (€)</label><input id="quoteDisposal" type="number" min="0" step="0.01" value="0"></div>
+      <div><label for="quoteOther">Altri costi (€)</label><input id="quoteOther" type="number" min="0" step="0.01" value="0"></div>
+      <div><label for="quoteMinimum">Minimo intervento (€)</label><input id="quoteMinimum" type="number" min="0" step="0.01" value="0"></div>
+    </div>
+
+    <h3>Spese generali e utile</h3>
+    <div class="grid3">
+      <div><label for="quoteGeneral">Spese generali (%)</label><input id="quoteGeneral" type="number" min="0" step="0.1" value="16"></div>
+      <div><label for="quoteProfit">Utile d'impresa (%)</label><input id="quoteProfit" type="number" min="0" step="0.1" value="10"></div>
+      <div><label for="quoteVat">IVA / imposta da applicare (%)</label><input id="quoteVat" type="number" min="0" step="0.1" value="0"></div>
+    </div>
+    <div class="muted" style="margin-top:7px">
+      I valori 16% spese generali e 10% utile sono preimpostati come riferimento metodologico Assoverde 2026; restano completamente modificabili.
+    </div>
+
+    <button id="quoteCalcBtn" class="btn full primary" style="margin-top:14px" type="button">CALCOLA PREZZO CLIENTE</button>
+    <div id="quoteResult" class="result hidden"></div>
+  </div>
+
+  <div class="card">
+    <h2>Riferimento tariffario Sardegna 2026</h2>
+    <div class="muted">
+      Cerca una voce nel Prezzario regionale dei Lavori Pubblici 2026. Il valore tariffario non sostituisce il tuo calcolo aziendale.
+    </div>
+    <div style="display:grid;grid-template-columns:1fr auto;gap:8px;margin-top:10px">
+      <input id="tariffQuery" placeholder="Es. diserbo, prato, manutenzione verde">
+      <button id="tariffSearchBtn" class="btn secondary" type="button">Cerca</button>
+    </div>
+    <div id="tariffStatus" class="muted" style="margin-top:8px"></div>
+    <div id="tariffResults"></div>
+
+    <div id="tariffSelectedBox" class="review hidden">
+      <strong>Voce selezionata</strong>
+      <div id="tariffSelectedText" class="muted"></div>
+      <div class="grid2" style="margin-top:8px">
+        <div>
+          <label for="tariffQty">Quantità di riferimento</label>
+          <input id="tariffQty" type="number" min="0" step="0.01" value="1">
+        </div>
+        <div>
+          <label>Totale tariffario</label>
+          <input id="tariffTotal" readonly value="€ 0,00">
+        </div>
+      </div>
+    </div>
+
+    <div class="muted" style="margin-top:12px">
+      Fonte: Prezzario dei Lavori Pubblici della Regione Sardegna, edizione 2026. Per il riferimento nazionale, il Prezzario Assoverde 2026 è commerciale: Dose Verde non ne riproduce le singole voci o i prezzi.
+    </div>
+  </div>
+</section>
+
 </main>
 
-<footer>Dose Verde · versione 1.3.3 fonti affidabili</footer>
+<footer>Dose Verde · versione 1.4 preventivo</footer>
 
 <script>
 (function(){
@@ -359,6 +462,7 @@ footer{text-align:center;color:#7a8980;font-size:11px;padding:0 14px 25px}
 
 var KEY='dose_verde_stable_v1';
 var currentPhoto='';
+var selectedTariff=null;
 
 var defaultProducts=[
   {
@@ -428,6 +532,7 @@ function showScreen(name){
 
   if(name==='archive') renderArchive();
   if(name==='calc') renderProductSelect();
+  if(name==='quote') renderQuoteProducts();
   window.scrollTo(0,0);
 }
 function renderProductSelect(preselect){
@@ -1091,6 +1196,160 @@ function applyWaterCandidate(index){
   el('wMax').value=c.max;
 }
 
+
+function money(v){
+  return new Intl.NumberFormat('it-IT',{style:'currency',currency:'EUR'}).format(Number(v)||0);
+}
+function quoteEligibleProducts(){
+  return loadProducts().filter(function(p){return !p.draft && p.min!=null && p.max!=null;});
+}
+function renderQuoteProducts(preselect){
+  var products=quoteEligibleProducts().slice().sort(function(a,b){return a.name.localeCompare(b.name)});
+  el('quoteProduct').innerHTML=products.length
+    ? products.map(function(p){return '<option value="'+esc(p.id)+'">'+esc(p.name)+'</option>';}).join('')
+    : '<option value="">Nessun prodotto completo</option>';
+  if(preselect && products.some(function(p){return p.id===preselect})) el('quoteProduct').value=preselect;
+}
+function quoteProductQuantity(){
+  var p=quoteEligibleProducts().find(function(x){return x.id===el('quoteProduct').value});
+  if(!p)return {p:null,qtyBase:0,qtyUnit:''};
+
+  var area=Number(el('quoteArea').value)||0;
+  var dose=choose(p.min,p.max,el('quoteDoseChoice').value);
+  var q=amountFor(p,dose,area,0);
+
+  // Convert amountFor result to commercial base unit L/kg where possible.
+  if(q.unit==='ml') return {p:p,qtyBase:q.value/1000,qtyUnit:'L',dose:dose,display:q.value+' ml'};
+  if(q.unit==='g') return {p:p,qtyBase:q.value/1000,qtyUnit:'kg',dose:dose,display:q.value+' g'};
+  return {p:p,qtyBase:q.value,qtyUnit:q.unit,dose:dose,display:q.value+' '+q.unit};
+}
+function calculateQuote(){
+  var pq=quoteProductQuantity();
+  if(!pq.p){alert('Seleziona un prodotto completo.');return}
+  var area=Number(el('quoteArea').value)||0;
+  if(!(area>0)){alert('Inserisci una superficie valida.');return}
+
+  var productUnitPrice=Number(el('quoteProductPrice').value)||0;
+  var productCost=pq.qtyBase*productUnitPrice;
+
+  var hours=Number(el('quoteHours').value)||0;
+  var operators=Math.max(1,Number(el('quoteOperators').value)||1);
+  var laborRate=Number(el('quoteLaborCost').value)||0;
+  var laborCost=hours*operators*laborRate;
+
+  var travel=Number(el('quoteTravel').value)||0;
+  var equipment=Number(el('quoteEquipment').value)||0;
+  var disposal=Number(el('quoteDisposal').value)||0;
+  var other=Number(el('quoteOther').value)||0;
+
+  var direct=productCost+laborCost+travel+equipment+disposal+other;
+  var generalPct=Number(el('quoteGeneral').value)||0;
+  var profitPct=Number(el('quoteProfit').value)||0;
+  var vatPct=Number(el('quoteVat').value)||0;
+  var general=direct*(generalPct/100);
+  var afterGeneral=direct+general;
+  var profit=afterGeneral*(profitPct/100);
+  var subtotal=afterGeneral+profit;
+  var minimum=Number(el('quoteMinimum').value)||0;
+  var beforeTax=Math.max(subtotal,minimum);
+  var tax=beforeTax*(vatPct/100);
+  var final=beforeTax+tax;
+
+  localStorage.setItem('dose_verde_quote_defaults',JSON.stringify({
+    productPrice:productUnitPrice,hours:hours,operators:operators,laborRate:laborRate,
+    travel:travel,equipment:equipment,disposal:disposal,other:other,minimum:minimum,
+    general:generalPct,profit:profitPct,vat:vatPct
+  }));
+
+  el('quoteResult').innerHTML=
+    '<div class="muted">'+esc(pq.p.name)+' · '+fmt(area,1)+' m²</div>'+
+    '<div class="quote-total">'+money(final)+'</div>'+
+    '<div class="muted">prezzo cliente calcolato</div>'+
+    '<hr>'+
+    '<div class="quote-line"><span>Prodotto ('+fmt(pq.qtyBase,3)+' '+esc(pq.qtyUnit)+')</span><b>'+money(productCost)+'</b></div>'+
+    '<div class="quote-line"><span>Manodopera ('+fmt(hours,1)+' h × '+operators+')</span><b>'+money(laborCost)+'</b></div>'+
+    '<div class="quote-line"><span>Trasferta</span><b>'+money(travel)+'</b></div>'+
+    '<div class="quote-line"><span>Attrezzature / noli</span><b>'+money(equipment)+'</b></div>'+
+    '<div class="quote-line"><span>Smaltimento</span><b>'+money(disposal)+'</b></div>'+
+    '<div class="quote-line"><span>Altri costi</span><b>'+money(other)+'</b></div>'+
+    '<div class="quote-line"><span><b>Costi diretti</b></span><b>'+money(direct)+'</b></div>'+
+    '<div class="quote-line"><span>Spese generali '+fmt(generalPct,1)+'%</span><b>'+money(general)+'</b></div>'+
+    '<div class="quote-line"><span>Utile '+fmt(profitPct,1)+'%</span><b>'+money(profit)+'</b></div>'+
+    (minimum>subtotal?'<div class="quote-line"><span>Applicato minimo intervento</span><b>'+money(minimum)+'</b></div>':'')+
+    (vatPct?'<div class="quote-line"><span>IVA / imposta '+fmt(vatPct,1)+'%</span><b>'+money(tax)+'</b></div>':'')+
+    '<div class="quote-line"><span><b>TOTALE CLIENTE</b></span><b>'+money(final)+'</b></div>';
+  el('quoteResult').classList.remove('hidden');
+}
+function loadQuoteDefaults(){
+  try{
+    var d=JSON.parse(localStorage.getItem('dose_verde_quote_defaults')||'{}');
+    if(d.productPrice!=null)el('quoteProductPrice').value=d.productPrice;
+    if(d.hours!=null)el('quoteHours').value=d.hours;
+    if(d.operators!=null)el('quoteOperators').value=d.operators;
+    if(d.laborRate!=null)el('quoteLaborCost').value=d.laborRate;
+    if(d.travel!=null)el('quoteTravel').value=d.travel;
+    if(d.equipment!=null)el('quoteEquipment').value=d.equipment;
+    if(d.disposal!=null)el('quoteDisposal').value=d.disposal;
+    if(d.other!=null)el('quoteOther').value=d.other;
+    if(d.minimum!=null)el('quoteMinimum').value=d.minimum;
+    if(d.general!=null)el('quoteGeneral').value=d.general;
+    if(d.profit!=null)el('quoteProfit').value=d.profit;
+    if(d.vat!=null)el('quoteVat').value=d.vat;
+  }catch(e){}
+}
+async function searchTariffs(){
+  var q=el('tariffQuery').value.trim();
+  if(!q){alert('Inserisci una lavorazione da cercare.');return}
+  el('tariffResults').innerHTML='';
+  setBusy('tariffStatus','Ricerca nel Prezzario Sardegna 2026…');
+  try{
+    var data=await apiJson('/api/tariffe?'+new URLSearchParams({q:q}).toString());
+    var items=data.results||[];
+    el('tariffStatus').textContent=items.length
+      ? 'Trovate '+items.length+' voci compatibili nel prezzario regionale 2026.'
+      : 'Nessuna voce compatibile trovata. Prova termini più generici.';
+    el('tariffResults').innerHTML=items.map(function(x,i){
+      return '<div class="tariff-result">'+
+        '<div class="tariff-code">'+esc(x.code||'')+'</div>'+
+        '<div class="tariff-desc">'+esc(x.description||'')+'</div>'+
+        '<div class="tariff-meta">'+esc(x.unit||'')+(x.price!=null?' · '+money(x.price):'')+' · '+esc(x.file||'')+'</div>'+
+        '<button class="btn small secondary" style="margin-top:7px" type="button" data-tariff-index="'+i+'">Usa come riferimento</button>'+
+        '</div>';
+    }).join('');
+    el('tariffResults')._items=items;
+  }catch(e){
+    el('tariffStatus').textContent='Ricerca tariffario non disponibile: '+e.message;
+  }
+}
+function autoTariffQty(unit){
+  var u=(unit||'').toLowerCase().replace(/\s/g,'');
+  var area=Number(el('quoteArea').value)||0;
+  var hours=(Number(el('quoteHours').value)||0)*(Math.max(1,Number(el('quoteOperators').value)||1));
+  if(u==='m2'||u==='m²'||u==='mq')return area||1;
+  if(u==='ha')return area?area/10000:1;
+  if(u==='h'||u==='ora'||u==='ore')return hours||1;
+  return 1;
+}
+function chooseTariff(index){
+  var items=el('tariffResults')._items||[];
+  var x=items[Number(index)];
+  if(!x)return;
+  selectedTariff=x;
+  el('tariffSelectedText').innerHTML=
+    '<b>'+esc(x.code||'')+'</b> · '+esc(x.description||'')+
+    '<br>'+esc(x.unit||'')+' · '+(x.price!=null?money(x.price):'prezzo non riconosciuto');
+  el('tariffQty').value=autoTariffQty(x.unit);
+  el('tariffSelectedBox').classList.remove('hidden');
+  updateTariffTotal();
+}
+function updateTariffTotal(){
+  if(!selectedTariff || selectedTariff.price==null){
+    el('tariffTotal').value='—'; return;
+  }
+  var qty=Number(el('tariffQty').value)||0;
+  el('tariffTotal').value=money(qty*Number(selectedTariff.price));
+}
+
 function newProduct(){
   resetForm();
   showScreen('product');
@@ -1140,6 +1399,13 @@ function wire(){
     if(d)applyDoseCandidate(d.getAttribute('data-dose-candidate'));
     if(w)applyWaterCandidate(w.getAttribute('data-water-candidate'));
   });
+  el('quoteCalcBtn').addEventListener('click',calculateQuote);
+  el('tariffSearchBtn').addEventListener('click',searchTariffs);
+  el('tariffQty').addEventListener('input',updateTariffTotal);
+  el('tariffResults').addEventListener('click',function(e){
+    var b=e.target.closest('[data-tariff-index]');
+    if(b)chooseTariff(b.getAttribute('data-tariff-index'));
+  });
   el('search').addEventListener('input',renderArchive);
 
   el('archiveList').addEventListener('click',function(e){
@@ -1159,7 +1425,9 @@ function start(){
   }
   wire();
   renderProductSelect();
-  el('status').textContent='Pronta · versione 1.3.3 fonti affidabili';
+  renderQuoteProducts();
+  loadQuoteDefaults();
+  el('status').textContent='Pronta · versione 1.4 preventivo';
 }
 
 window.addEventListener('DOMContentLoaded',start);

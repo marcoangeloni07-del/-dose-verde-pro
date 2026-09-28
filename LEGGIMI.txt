@@ -1,27 +1,30 @@
-DOSE VERDE 1.3.3 — FONTI AFFIDABILI
+DOSE VERDE 1.4 — PREVENTIVO INTERVENTO
 
-Correzione principale:
-la ricerca tecnica non accetta più risultati generici solo perché il motore di ricerca li restituisce.
+NUOVA SEZIONE "PREVENTIVO"
+- quantità di prodotto calcolata automaticamente dalla dose e dalla superficie
+- costo prodotto da prezzo di acquisto €/L o €/kg
+- ore, operatori e costo manodopera interno
+- trasferta, attrezzature/noli, smaltimento, altri costi
+- spese generali
+- utile d'impresa
+- eventuale IVA/imposta
+- minimo intervento
+- totale cliente
+- memorizzazione locale dei valori economici usati più spesso
 
-NUOVO ORDINE DI RICERCA
-1. Se esiste un numero di registrazione, tenta direttamente l'etichetta autorizzata nel database BDF/WinBDF:
-   https://www.winbdf.it/bdf-archivi/etichette1/NUMERO.pdf
-2. Solo se serve, effettua una ricerca web molto più restrittiva.
-3. I risultati web devono contenere il prodotto/numero di registrazione E segnali tecnici
-   (etichetta, scheda tecnica, PDF, fitosanitario, ecc.).
-4. Forum, social, marketplace e siti generici vengono esclusi.
-5. Le fonti Ministero Salute, Gazzetta Ufficiale e WinBDF ricevono priorità.
+RIFERIMENTI
+- Prezzario Regione Sardegna LL.PP. 2026: ricerca direttamente nel pacchetto CSV open data ufficiale.
+- Assoverde 2026: vengono usati come default modificabili solo i parametri pubblicamente dichiarati
+  di 16% spese generali e 10% utile. Le singole voci/prezzi Assoverde non vengono importate perché il prezzario è commerciale.
 
-Per Turfene Plus (reg. 15291), la ricerca dovrebbe proporre direttamente:
-https://www.winbdf.it/bdf-archivi/etichette1/15291.pdf
-
-AGGIORNAMENTO
-Sostituisci nella root del repository:
+AGGIORNAMENTO GITHUB
+Sostituisci/carica nella root:
 - index.html
 - search.js
 - find-technical.js
 - analyze.js
+- tariffe.js   <-- NUOVO
 - package.json
 - vercel.json
 
-Commit changes e attendi il redeploy Vercel.
+Poi Commit changes e attendi il redeploy Vercel.
