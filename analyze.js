@@ -13,9 +13,36 @@ function privateIp(ip){
   }
   return true;
 }
+function cleanUrl(raw){
+  let s=String(raw||'').trim();
+
+  // Handles copied Markdown, angle brackets and quotes.
+  const md=s.match(/^\[[^\]]*\]\((https?:\/\/.+)\)$/i);
+  if(md) s=md[1];
+  s=s.replace(/^[<"'`]+|[>"'`]+$/g,'').trim();
+
+  // Some share sheets omit the scheme.
+  if(/^www\./i.test(s)) s='https://'+s;
+  if(!/^[a-z][a-z0-9+.-]*:\/\//i.test(s) && /^[^\s/]+\.[^\s]+/i.test(s)){
+    s='https://'+s;
+  }
+
+  let u;
+  try{ u=new URL(s); }
+  catch(e){ throw new Error('URL non valido. Incolla il collegamento completo che inizia con https://'); }
+
+  // Unwrap common redirect links.
+  if(/(^|\.)google\./i.test(u.hostname) || /(^|\.)bing\.com$/i.test(u.hostname)){
+    const nested=u.searchParams.get('url') || u.searchParams.get('q') || u.searchParams.get('u');
+    if(nested && /^https?:\/\//i.test(nested)){
+      try{ u=new URL(nested); }catch(e){}
+    }
+  }
+  return u;
+}
 async function safeUrl(raw){
-  const u=new URL(raw);
-  if(!['http:','https:'].includes(u.protocol)) throw new Error('URL non valido');
+  const u=cleanUrl(raw);
+  if(!['http:','https:'].includes(u.protocol)) throw new Error('Sono ammessi solo indirizzi http/https.');
   const hosts=await dns.lookup(u.hostname,{all:true});
   if(!hosts.length || hosts.some(x=>privateIp(x.address))) throw new Error('Host non consentito');
   return u;
@@ -58,6 +85,7 @@ function findRanges(text){
   return {dose:uniq(dose),water:uniq(water)};
 }
 module.exports = async function(req,res){
+  res.setHeader('Content-Type','application/json; charset=utf-8');
   try{
     const raw=String(req.query.url||'').trim();
     if(!raw) return res.status(400).json({error:'URL mancante'});
@@ -67,7 +95,7 @@ module.exports = async function(req,res){
     const r=await fetch(u.toString(),{
       redirect:'follow',
       signal:controller.signal,
-      headers:{'user-agent':'Mozilla/5.0 DoseVerde/1.3'}
+      headers:{'user-agent':'Mozilla/5.0 DoseVerde/1.3.1'}
     });
     clearTimeout(timer);
     if(!r.ok) throw new Error('Fonte non raggiungibile');

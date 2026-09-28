@@ -347,7 +347,7 @@ footer{text-align:center;color:#7a8980;font-size:11px;padding:0 14px 25px}
 </section>
 </main>
 
-<footer>Dose Verde · versione 1.3 assistita</footer>
+<footer>Dose Verde · versione 1.3.1 assistita</footer>
 
 <script>
 (function(){
@@ -738,6 +738,38 @@ function savePhotoDraft(){
 }
 
 
+
+async function apiJson(url){
+  var response;
+  try{
+    response=await fetch(url,{headers:{'Accept':'application/json'}});
+  }catch(e){
+    throw new Error('Impossibile contattare il servizio online.');
+  }
+
+  var raw='';
+  try{ raw=await response.text(); }catch(e){}
+
+  var data=null;
+  if(raw){
+    try{
+      data=JSON.parse(raw);
+    }catch(e){
+      if(response.status===404){
+        throw new Error('Servizio API non trovato su Vercel (404).');
+      }
+      throw new Error('Il server ha restituito una risposta non valida ('+response.status+').');
+    }
+  }else{
+    data={};
+  }
+
+  if(!response.ok){
+    throw new Error((data&&data.error) || ('Errore server '+response.status));
+  }
+  return data;
+}
+
 function setBusy(id,text){
   var node=el(id);
   node.innerHTML='<span class="spinner"></span>'+esc(text);
@@ -760,9 +792,7 @@ async function officialSearch(){
   setBusy('officialStatus','Ricerca nel dataset del Ministero della Salute…');
   try{
     var url='/api/search?'+new URLSearchParams({q:q,reg:reg}).toString();
-    var r=await fetch(url,{headers:{'Accept':'application/json'}});
-    var data=await r.json();
-    if(!r.ok)throw new Error(data.error||'Ricerca non disponibile');
+    var data=await apiJson(url);
     el('officialStatus').textContent=(data.matches||[]).length
       ? 'Trovati '+data.matches.length+' risultati · dataset '+(data.datasetDate||'Ministero della Salute')
       : 'Nessun prodotto trovato nel dataset ufficiale.';
@@ -893,9 +923,7 @@ async function findTechnical(){
   el('technicalResults').innerHTML='';
   setBusy('technicalStatus','Ricerca di possibili schede tecniche…');
   try{
-    var r=await fetch('/api/find-technical?'+new URLSearchParams({q:name,reg:reg}).toString());
-    var data=await r.json();
-    if(!r.ok)throw new Error(data.error||'Ricerca non disponibile');
+    var data=await apiJson('/api/find-technical?'+new URLSearchParams({q:name,reg:reg}).toString());
     var items=data.results||[];
     el('technicalStatus').textContent=items.length
       ? 'Fonti candidate trovate. Apri o analizza solo quelle pertinenti al prodotto.'
@@ -921,9 +949,7 @@ async function analyzeUrl(url){
   setBusy('technicalStatus','Analisi della fonte online…');
   el('analysisResult').innerHTML='';
   try{
-    var r=await fetch('/api/analyze?'+new URLSearchParams({url:url}).toString());
-    var data=await r.json();
-    if(!r.ok)throw new Error(data.error||'Analisi non disponibile');
+    var data=await apiJson('/api/analyze?'+new URLSearchParams({url:url}).toString());
     el('technicalStatus').textContent='Fonte analizzata. Verifica sempre i dati proposti.';
     renderAnalysis(data);
   }catch(e){
@@ -1037,7 +1063,7 @@ function start(){
   }
   wire();
   renderProductSelect();
-  el('status').textContent='Pronta · versione 1.3 assistita';
+  el('status').textContent='Pronta · versione 1.3.1 assistita';
 }
 
 window.addEventListener('DOMContentLoaded',start);

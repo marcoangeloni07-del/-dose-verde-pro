@@ -9,6 +9,7 @@ function textBetween(block,tag){
   return m?decodeXml(m[1]).replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').trim():'';
 }
 module.exports = async function(req,res){
+  res.setHeader('Content-Type','application/json; charset=utf-8');
   try{
     const q=String(req.query.q||'').trim().slice(0,100);
     const reg=String(req.query.reg||'').replace(/\D/g,'').slice(0,12);
@@ -16,7 +17,7 @@ module.exports = async function(req,res){
     const query=[q,reg,'etichetta scheda tecnica dosi pdf'].filter(Boolean).map(x=>'"'+x+'"').join(' ');
     const url='https://www.bing.com/search?format=rss&q='+encodeURIComponent(query);
     const r=await fetch(url,{headers:{
-      'user-agent':'Mozilla/5.0 DoseVerde/1.3',
+      'user-agent':'Mozilla/5.0 DoseVerde/1.3.1',
       'accept':'application/rss+xml,application/xml,text/xml'
     }});
     if(!r.ok) throw new Error('Motore di ricerca non disponibile');

@@ -1,22 +1,50 @@
 {
-  "headers": [
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": null,
+  "builds": [
     {
-      "source": "/index.html",
-      "headers": [
-        {
-          "key": "Cache-Control",
-          "value": "no-store, max-age=0"
-        }
-      ]
+      "src": "index.html",
+      "use": "@vercel/static"
     },
     {
-      "source": "/",
-      "headers": [
-        {
-          "key": "Cache-Control",
-          "value": "no-store, max-age=0"
-        }
-      ]
+      "src": "search.js",
+      "use": "@vercel/node"
+    },
+    {
+      "src": "find-technical.js",
+      "use": "@vercel/node"
+    },
+    {
+      "src": "analyze.js",
+      "use": "@vercel/node"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/api/search",
+      "dest": "/search.js"
+    },
+    {
+      "src": "/api/find-technical",
+      "dest": "/find-technical.js"
+    },
+    {
+      "src": "/api/analyze",
+      "dest": "/analyze.js"
+    },
+    {
+      "src": "/",
+      "dest": "/index.html",
+      "headers": {
+        "Cache-Control": "no-store, max-age=0"
+      }
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/index.html",
+      "headers": {
+        "Cache-Control": "no-store, max-age=0"
+      }
     }
   ]
 }
