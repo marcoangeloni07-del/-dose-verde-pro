@@ -67,6 +67,30 @@ input,select{
 hr{border:0;border-top:1px solid var(--line);margin:14px 0}
 .note{background:#fff8df;border:1px solid #e4cb73;border-radius:12px;padding:11px;font-size:12px;line-height:1.45}
 footer{text-align:center;color:#7a8980;font-size:11px;padding:0 14px 25px}
+
+.photo-box{
+  margin-top:12px;border:1.5px dashed #b8c9be;border-radius:14px;
+  padding:12px;background:#fbfdfb
+}
+.photo-row{display:grid;grid-template-columns:96px 1fr;gap:12px;align-items:center}
+.photo-preview{
+  width:96px;height:96px;object-fit:cover;border-radius:12px;
+  border:1px solid var(--line);background:#eef3ef
+}
+.photo-empty{
+  width:96px;height:96px;border-radius:12px;border:1px solid var(--line);
+  background:#eef3ef;display:grid;place-items:center;font-size:34px
+}
+.archive-main{display:grid;grid-template-columns:66px 1fr;gap:10px;align-items:center}
+.archive-thumb{
+  width:66px;height:66px;object-fit:cover;border-radius:11px;
+  border:1px solid var(--line);background:#eef3ef
+}
+.archive-empty{
+  width:66px;height:66px;border-radius:11px;border:1px solid var(--line);
+  background:#eef3ef;display:grid;place-items:center;font-size:26px
+}
+
 </style>
 </head>
 <body>
@@ -200,32 +224,49 @@ footer{text-align:center;color:#7a8980;font-size:11px;padding:0 14px 25px}
       </div>
     </div>
 
+
+    <div class="photo-box">
+      <label for="pPhoto">Foto etichetta</label>
+      <div class="photo-row">
+        <div id="photoEmpty" class="photo-empty">📷</div>
+        <img id="photoPreview" class="photo-preview hidden" alt="Anteprima etichetta">
+        <div>
+          <input id="pPhoto" type="file" accept="image/*" capture="environment">
+          <div class="muted" style="margin-top:7px">
+            Scatta una foto o scegli l'immagine dell'etichetta. La foto viene ridimensionata prima del salvataggio.
+          </div>
+          <button id="removePhotoBtn" class="btn secondary small hidden" style="margin-top:8px" type="button">Rimuovi foto</button>
+        </div>
+      </div>
+    </div>
+
     <button id="saveBtn" class="btn full primary" style="margin-top:14px" type="button">Salva prodotto</button>
     <button id="deleteBtn" class="btn full danger hidden" style="margin-top:8px" type="button">Elimina prodotto</button>
   </div>
 </section>
 </main>
 
-<footer>Dose Verde · versione stabile 1.1 reset</footer>
+<footer>Dose Verde · versione stabile 1.2 foto</footer>
 
 <script>
 (function(){
 'use strict';
 
 var KEY='dose_verde_stable_v1';
+var currentPhoto='';
 
 var defaultProducts=[
   {
     id:'turfene-maturo',
     name:'Turfene Plus — prato dal 2° anno',
     scenario:'Prato dal 2° anno',
-    min:5,max:8,unit:'L_ha',waterMin:400,waterMax:600
+    min:5,max:8,unit:'L_ha',waterMin:400,waterMax:600,photo:''
   },
   {
     id:'turfene-primo-anno',
     name:"Turfene Plus — 1° anno",
     scenario:"1° anno d'impianto",
-    min:5,max:6,unit:'L_ha',waterMin:400,waterMax:600
+    min:5,max:6,unit:'L_ha',waterMin:400,waterMax:600,photo:''
   }
 ];
 
@@ -260,7 +301,16 @@ function loadProducts(){
   }
 }
 function saveProducts(arr){
-  localStorage.setItem(KEY,JSON.stringify(arr));
+  try{
+    localStorage.setItem(KEY,JSON.stringify(arr));
+    return true;
+  }catch(e){
+    if(e && (e.name==='QuotaExceededError' || e.code===22)){
+      alert('Lo spazio del browser è quasi pieno. La foto potrebbe essere troppo grande o ci sono molte immagini salvate.');
+      return false;
+    }
+    throw e;
+  }
 }
 function showScreen(name){
   document.querySelectorAll('.screen').forEach(function(s){s.classList.remove('active')});
@@ -364,12 +414,16 @@ function renderArchive(){
   }
 
   el('archiveList').innerHTML=products.map(function(p){
+    var thumb=p.photo
+      ? '<img class="archive-thumb" src="'+p.photo+'" alt="Etichetta">'
+      : '<div class="archive-empty">🌱</div>';
     return '<div class="product">'+
+      '<div class="archive-main">'+thumb+
       '<div><strong>'+esc(p.name)+'</strong>'+
       '<div class="muted">'+esc(p.scenario||'')+'</div>'+
       '<div><span class="pill">'+fmt(p.min,2)+'–'+fmt(p.max,2)+' '+unitLabel(p.unit)+'</span>'+
       ((p.waterMin||p.waterMax)?'<span class="pill">'+fmt(p.waterMin||p.waterMax,0)+'–'+fmt(p.waterMax||p.waterMin,0)+' L/ha acqua</span>':'')+
-      '</div></div>'+
+      '</div></div></div>'+
       '<div class="actions">'+
       '<button class="btn small secondary" type="button" data-action="edit" data-id="'+esc(p.id)+'">Apri</button>'+
       '<button class="btn small primary" type="button" data-action="use" data-id="'+esc(p.id)+'">Usa</button>'+
@@ -385,6 +439,9 @@ function resetForm(){
   el('pMax').value='';
   el('wMin').value='';
   el('wMax').value='';
+  el('pPhoto').value='';
+  currentPhoto='';
+  updatePhotoPreview();
   el('formTitle').textContent='Nuovo prodotto';
   el('deleteBtn').classList.add('hidden');
 }
@@ -400,6 +457,9 @@ function editProduct(id){
   el('pMax').value=p.max!=null?p.max:'';
   el('wMin').value=p.waterMin||'';
   el('wMax').value=p.waterMax||'';
+  currentPhoto=p.photo||'';
+  el('pPhoto').value='';
+  updatePhotoPreview();
   el('formTitle').textContent='Modifica prodotto';
   el('deleteBtn').classList.remove('hidden');
   showScreen('product');
@@ -423,12 +483,13 @@ function saveProduct(){
     min:Number(minText),
     max:Number(maxText),
     waterMin:Number(el('wMin').value)||0,
-    waterMax:Number(el('wMax').value)||0
+    waterMax:Number(el('wMax').value)||0,
+    photo:currentPhoto||''
   };
 
   var idx=products.findIndex(function(x){return x.id===id});
   if(idx>=0)products[idx]=obj;else products.push(obj);
-  saveProducts(products);
+  if(!saveProducts(products)) return;
 
   resetForm();
   renderProductSelect(id);
@@ -445,6 +506,58 @@ function deleteProduct(){
   renderProductSelect();
   showScreen('archive');
 }
+
+function updatePhotoPreview(){
+  if(currentPhoto){
+    el('photoPreview').src=currentPhoto;
+    el('photoPreview').classList.remove('hidden');
+    el('photoEmpty').classList.add('hidden');
+    el('removePhotoBtn').classList.remove('hidden');
+  }else{
+    el('photoPreview').src='';
+    el('photoPreview').classList.add('hidden');
+    el('photoEmpty').classList.remove('hidden');
+    el('removePhotoBtn').classList.add('hidden');
+  }
+}
+function resizePhoto(file){
+  return new Promise(function(resolve,reject){
+    var reader=new FileReader();
+    reader.onerror=function(){reject(new Error('read'))};
+    reader.onload=function(){
+      var img=new Image();
+      img.onerror=function(){reject(new Error('image'))};
+      img.onload=function(){
+        var maxSide=900;
+        var scale=Math.min(1,maxSide/Math.max(img.width,img.height));
+        var canvas=document.createElement('canvas');
+        canvas.width=Math.max(1,Math.round(img.width*scale));
+        canvas.height=Math.max(1,Math.round(img.height*scale));
+        var ctx=canvas.getContext('2d');
+        ctx.drawImage(img,0,0,canvas.width,canvas.height);
+        resolve(canvas.toDataURL('image/jpeg',0.68));
+      };
+      img.src=reader.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+async function photoChanged(){
+  var file=el('pPhoto').files[0];
+  if(!file)return;
+  try{
+    currentPhoto=await resizePhoto(file);
+    updatePhotoPreview();
+  }catch(e){
+    alert('Non riesco a leggere questa immagine.');
+  }
+}
+function removePhoto(){
+  currentPhoto='';
+  el('pPhoto').value='';
+  updatePhotoPreview();
+}
+
 function newProduct(){
   resetForm();
   showScreen('product');
@@ -461,6 +574,8 @@ function wire(){
   el('calcBtn').addEventListener('click',calculate);
   el('saveBtn').addEventListener('click',saveProduct);
   el('deleteBtn').addEventListener('click',deleteProduct);
+  el('pPhoto').addEventListener('change',photoChanged);
+  el('removePhotoBtn').addEventListener('click',removePhoto);
   el('search').addEventListener('input',renderArchive);
 
   el('archiveList').addEventListener('click',function(e){
@@ -480,7 +595,7 @@ function start(){
   }
   wire();
   renderProductSelect();
-  el('status').textContent='Pronta · versione 1.1 reset';
+  el('status').textContent='Pronta · versione 1.2 foto';
 }
 
 window.addEventListener('DOMContentLoaded',start);
