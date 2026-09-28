@@ -1,19 +1,19 @@
-DOSE VERDE 1.3.1 — FIX API VERCEL
+DOSE VERDE 1.3.2 — COMPILAZIONE AUTOMATICA DATI TECNICI
 
-PROBLEMA TROVATO
-Nel repository i tre file server:
-- search.js
-- find-technical.js
-- analyze.js
-sono stati caricati nella cartella principale, non dentro /api.
-La versione 1.3 chiamava invece /api/search, /api/find-technical e /api/analyze.
-Vercel quindi rispondeva 404 e Safari tentava di interpretare la pagina HTML di errore come JSON,
-mostrando anche l'errore "The string did not match the expected pattern".
+NOVITÀ
+- dopo aver scelto il prodotto dal database del Ministero, parte automaticamente la ricerca della scheda tecnica
+- se viene trovata una sola fonte molto probabile, l'app prova ad analizzarla automaticamente
+- riconosce intervalli e dosi fisse (es. 5–8 L/ha oppure 5 L/ha)
+- prova a distinguere dose prodotto e volume d'acqua
+- prova a riconoscere lo scenario (es. 1° anno, dal 2° anno, tappeti erbosi)
+- se trova un solo scenario, compila automaticamente dose, unità, acqua e scenario
+- se trova più scenari, mostra pulsanti tra cui scegliere
+- acqua minima/massima NON è più obbligatoria
+- se non è stata trovata una dose, “Salva prodotto” salva automaticamente una BOZZA invece di bloccare il salvataggio
+- le bozze restano escluse dal calcolatore finché non hanno una dose
 
-QUESTA VERSIONE È PENSATA APPOSITAMENTE PER IL REPOSITORY PIATTO.
-Non devi creare cartelle.
-
-SOSTITUISCI/AGGIUNGI NELLA ROOT DEL REPOSITORY:
+AGGIORNAMENTO
+Sostituisci nella root del repository i 6 file:
 - index.html
 - search.js
 - find-technical.js
@@ -21,13 +21,8 @@ SOSTITUISCI/AGGIUNGI NELLA ROOT DEL REPOSITORY:
 - package.json
 - vercel.json
 
-Poi fai Commit changes e attendi il redeploy Vercel.
+Poi Commit changes e attendi il deployment Vercel.
 
-TEST CONSIGLIATO
-1. Apri Nuovo prodotto.
-2. Scrivi Turfene Plus.
-3. Premi Cerca dati.
-4. Seleziona un risultato.
-5. Incolla un URL PDF completo (https://...) e premi Analizza.
-
-La 1.3.1 mostra inoltre errori API leggibili invece del messaggio generico di Safari.
+SICUREZZA
+I dati tecnici estratti dal web vengono precompilati, ma il salvataggio da parte dell'utente costituisce la conferma.
+Controlla che fonte, prodotto, numero di registrazione e impiego corrispondano prima di salvare.

@@ -15,27 +15,20 @@ function privateIp(ip){
 }
 function cleanUrl(raw){
   let s=String(raw||'').trim();
-
-  // Handles copied Markdown, angle brackets and quotes.
   const md=s.match(/^\[[^\]]*\]\((https?:\/\/.+)\)$/i);
   if(md) s=md[1];
   s=s.replace(/^[<"'`]+|[>"'`]+$/g,'').trim();
-
-  // Some share sheets omit the scheme.
   if(/^www\./i.test(s)) s='https://'+s;
-  if(!/^[a-z][a-z0-9+.-]*:\/\//i.test(s) && /^[^\s/]+\.[^\s]+/i.test(s)){
-    s='https://'+s;
-  }
+  if(!/^[a-z][a-z0-9+.-]*:\/\//i.test(s) && /^[^\s/]+\.[^\s]+/i.test(s)) s='https://'+s;
 
   let u;
-  try{ u=new URL(s); }
-  catch(e){ throw new Error('URL non valido. Incolla il collegamento completo che inizia con https://'); }
+  try{u=new URL(s);}
+  catch(e){throw new Error('URL non valido. Incolla il collegamento completo che inizia con https://');}
 
-  // Unwrap common redirect links.
   if(/(^|\.)google\./i.test(u.hostname) || /(^|\.)bing\.com$/i.test(u.hostname)){
     const nested=u.searchParams.get('url') || u.searchParams.get('q') || u.searchParams.get('u');
     if(nested && /^https?:\/\//i.test(nested)){
-      try{ u=new URL(nested); }catch(e){}
+      try{u=new URL(nested);}catch(e){}
     }
   }
   return u;
@@ -56,53 +49,141 @@ function stripHtml(s){
     .replace(/\s+/g,' ').trim();
 }
 function n(v){return Number(String(v).replace(',','.'))}
-function findRanges(text){
-  const compact=text.replace(/\s+/g,' ');
+function cleanContext(s){return String(s||'').replace(/\s+/g,' ').trim()}
+
+function detectScenario(context){
+  const lc=context.toLowerCase();
+
+  if(/(?:1°|1º|primo)\s*anno|anno\s+di\s+impianto|nuov[oi]\s+impiant/.test(lc))
+    return "1° anno d'impianto";
+
+  if(/dal\s+(?:2°|2º|secondo)\s+anno|a\s+partire\s+dal\s+(?:2°|2º|secondo)\s+anno|anni?\s+successiv/.test(lc))
+    return 'Dal 2° anno';
+
+  if(/tappet[io]\s+erbos|prat[oi]|turf/.test(lc))
+    return 'Tappeti erbosi';
+
+  if(/camp[io]\s+sportiv|campo\s+da\s+golf|golf/.test(lc))
+    return 'Tappeti erbosi sportivi';
+
+  if(/ornamental|aree\s+verdi|verde\s+pubblico/.test(lc))
+    return 'Aree ornamentali';
+
+  // Short meaningful phrase before the dosage, when available.
+  const bits=context.split(/[.;:]/).map(x=>cleanContext(x)).filter(Boolean);
+  const candidate=bits.find(x=>/prat|tappet|anno|impiant|ornamental|sportiv|golf/i.test(x));
+  if(candidate) return candidate.slice(0,90);
+
+  return '';
+}
+
+function normalizeUnit(unit,area,min,max){
+  const u=unit.toLowerCase();
+  const a=area.toLowerCase();
+  return {unit:u,area:a,min,max};
+}
+
+function findCandidates(text){
+  const compact=cleanContext(text);
   const dose=[],water=[];
-  const re=/(\d+(?:[.,]\d+)?)\s*[-–]\s*(\d+(?:[.,]\d+)?)\s*(ml|l|litri|kg|g)\s*(?:\/|per)\s*(ha|ettaro|ettari|100\s*(?:m²|m2|mq))/gi;
+
+  // Supports 5-8 L/ha, 5 a 8 L/ha, 5 L/ha and similar.
+  const re=/(\d+(?:[.,]\d+)?)\s*(?:(?:-|–|—|÷|\ba\b|\bfino\s+a\b)\s*(\d+(?:[.,]\d+)?))?\s*(ml|l|litri|kg|g)\s*(?:\/|per)\s*(ha|ettaro|ettari|100\s*(?:m²|m2|mq))/gi;
+
   let m;
   while((m=re.exec(compact))!==null){
-    const before=compact.slice(Math.max(0,m.index-160),m.index);
-    const after=compact.slice(re.lastIndex,Math.min(compact.length,re.lastIndex+160));
-    const ctx=(before+' '+m[0]+' '+after);
+    const min=n(m[1]);
+    const max=m[2]?n(m[2]):min;
+    const before=compact.slice(Math.max(0,m.index-240),m.index);
+    const after=compact.slice(re.lastIndex,Math.min(compact.length,re.lastIndex+240));
+    const ctx=cleanContext(before+' '+m[0]+' '+after);
     const lc=ctx.toLowerCase();
-    const item={
-      min:n(m[1]),max:n(m[2]),
-      unit:m[3].toLowerCase(),area:m[4].toLowerCase(),
-      label:m[1]+'–'+m[2]+' '+m[3]+'/'+m[4],
-      context:ctx.slice(0,360)
-    };
-    if(/acqua|volume|miscela|dilu/.test(lc) && (item.unit==='l'||item.unit==='litri') && item.min>=20) water.push(item);
-    else if(/dose|dosi|impiego|applic|distribu/.test(lc)) dose.push(item);
+    const item=normalizeUnit(m[3],m[4],min,max);
+    item.label=(min===max?String(m[1]):m[1]+'–'+m[2])+' '+m[3]+'/'+m[4];
+    item.context=ctx.slice(0,500);
+    item.pos=m.index;
+    item.scenario=detectScenario(ctx);
+
+    const waterWords=/volume\s*(?:d['’]acqua|acqua)|acqua|miscela|bagnatura|diluizione|irrorazione/.test(lc);
+    const doseWords=/dose|dosi|dosaggio|impiego|applicazione|applicare|distribuire|trattamento/.test(lc);
+
+    if(waterWords && (item.unit==='l'||item.unit==='litri') && item.min>=20){
+      water.push(item);
+    }else if(doseWords || !waterWords){
+      dose.push(item);
+    }
   }
+
   function uniq(arr){
-    const s=new Set();
+    const seen=new Set();
     return arr.filter(x=>{
-      const k=[x.min,x.max,x.unit,x.area].join('|');
-      if(s.has(k))return false;s.add(k);return true;
-    }).slice(0,8);
+      const k=[x.min,x.max,x.unit,x.area,x.scenario].join('|');
+      if(seen.has(k)) return false;
+      seen.add(k); return true;
+    }).slice(0,12);
   }
   return {dose:uniq(dose),water:uniq(water)};
 }
-module.exports = async function(req,res){
+
+function pairScenarios(doses,waters){
+  const scenarios=[];
+  for(const d of doses){
+    let best=null;
+    if(waters.length===1){
+      best=waters[0];
+    }else if(waters.length>1){
+      const sameScenario=waters.filter(w=>w.scenario && d.scenario && w.scenario===d.scenario);
+      const pool=sameScenario.length?sameScenario:waters;
+      best=pool.slice().sort((a,b)=>Math.abs(a.pos-d.pos)-Math.abs(b.pos-d.pos))[0]||null;
+      if(best && Math.abs(best.pos-d.pos)>1800 && !sameScenario.length) best=null;
+    }
+
+    let scenario=d.scenario || (best&&best.scenario) || '';
+    if(!scenario && doses.length===1) scenario='Impiego rilevato';
+
+    scenarios.push({
+      scenario,
+      dose:d,
+      water:best,
+      context:d.context
+    });
+  }
+
+  const seen=new Set();
+  return scenarios.filter(s=>{
+    const d=s.dose||{};
+    const w=s.water||{};
+    const k=[s.scenario,d.min,d.max,d.unit,d.area,w.min,w.max].join('|');
+    if(seen.has(k))return false;
+    seen.add(k);return true;
+  }).slice(0,10);
+}
+
+module.exports=async function(req,res){
   res.setHeader('Content-Type','application/json; charset=utf-8');
   try{
     const raw=String(req.query.url||'').trim();
     if(!raw) return res.status(400).json({error:'URL mancante'});
+
     const u=await safeUrl(raw);
     const controller=new AbortController();
-    const timer=setTimeout(()=>controller.abort(),15000);
+    const timer=setTimeout(()=>controller.abort(),18000);
+
     const r=await fetch(u.toString(),{
       redirect:'follow',
       signal:controller.signal,
-      headers:{'user-agent':'Mozilla/5.0 DoseVerde/1.3.1'}
+      headers:{'user-agent':'Mozilla/5.0 DoseVerde/1.3.2'}
     });
     clearTimeout(timer);
-    if(!r.ok) throw new Error('Fonte non raggiungibile');
+
+    if(!r.ok) throw new Error('Fonte non raggiungibile (HTTP '+r.status+')');
+
     const len=Number(r.headers.get('content-length')||0);
-    if(len>12*1024*1024) throw new Error('Documento troppo grande');
+    if(len>14*1024*1024) throw new Error('Documento troppo grande');
+
     const type=(r.headers.get('content-type')||'').toLowerCase();
     let text='';
+
     if(type.includes('pdf') || u.pathname.toLowerCase().endsWith('.pdf')){
       const buf=Buffer.from(await r.arrayBuffer());
       const pdfParse=require('pdf-parse');
@@ -111,18 +192,31 @@ module.exports = async function(req,res){
     }else{
       text=stripHtml(await r.text());
     }
-    if(!text) throw new Error('Nessun testo leggibile');
-    const ranges=findRanges(text);
-    const key=text.toLowerCase().search(/dose|dosi|modalit[aà].{0,20}impiego|impiego/);
-    const start=key>=0?Math.max(0,key-220):0;
-    const snippet=text.slice(start,start+900).replace(/\s+/g,' ').trim();
+
+    if(!text) throw new Error('Nessun testo leggibile nella fonte');
+
+    const found=findCandidates(text);
+    const scenarios=pairScenarios(found.dose,found.water);
+
+    const key=text.toLowerCase().search(/dose|dosi|dosaggio|modalit[aà].{0,30}impiego|impiego|volume.{0,15}acqua/);
+    const start=key>=0?Math.max(0,key-260):0;
+    const snippet=cleanContext(text.slice(start,start+1200));
+
     return res.status(200).json({
       source:u.toString(),
-      doseCandidates:ranges.dose,
-      waterCandidates:ranges.water,
+      doseCandidates:found.dose.map(({pos,...x})=>x),
+      waterCandidates:found.water.map(({pos,...x})=>x),
+      scenarios:scenarios.map(s=>({
+        scenario:s.scenario,
+        dose:s.dose?Object.fromEntries(Object.entries(s.dose).filter(([k])=>k!=='pos')):null,
+        water:s.water?Object.fromEntries(Object.entries(s.water).filter(([k])=>k!=='pos')):null,
+        context:s.context
+      })),
       snippet
     });
   }catch(e){
-    return res.status(502).json({error:e.name==='AbortError'?'Timeout durante il recupero della fonte':(e.message||'Analisi fallita')});
+    return res.status(502).json({
+      error:e.name==='AbortError'?'Timeout durante il recupero della fonte':(e.message||'Analisi fallita')
+    });
   }
 };

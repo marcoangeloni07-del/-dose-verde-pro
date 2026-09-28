@@ -17,7 +17,7 @@ module.exports = async function(req,res){
     const query=[q,reg,'etichetta scheda tecnica dosi pdf'].filter(Boolean).map(x=>'"'+x+'"').join(' ');
     const url='https://www.bing.com/search?format=rss&q='+encodeURIComponent(query);
     const r=await fetch(url,{headers:{
-      'user-agent':'Mozilla/5.0 DoseVerde/1.3.1',
+      'user-agent':'Mozilla/5.0 DoseVerde/1.3.2',
       'accept':'application/rss+xml,application/xml,text/xml'
     }});
     if(!r.ok) throw new Error('Motore di ricerca non disponibile');

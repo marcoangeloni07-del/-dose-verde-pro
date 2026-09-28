@@ -341,13 +341,17 @@ footer{text-align:center;color:#7a8980;font-size:11px;padding:0 14px 25px}
       <div id="analysisResult"></div>
     </div>
 
+    <div class="muted" style="margin-top:12px">
+      Se la dose non è ancora disponibile, il prodotto viene salvato automaticamente come <b>bozza</b> e non compare nel calcolatore finché non viene completato.
+      Il volume d'acqua è facoltativo.
+    </div>
     <button id="saveBtn" class="btn full primary" style="margin-top:14px" type="button">Salva prodotto</button>
     <button id="deleteBtn" class="btn full danger hidden" style="margin-top:8px" type="button">Elimina prodotto</button>
   </div>
 </section>
 </main>
 
-<footer>Dose Verde · versione 1.3.1 assistita</footer>
+<footer>Dose Verde · versione 1.3.2 auto-dati</footer>
 
 <script>
 (function(){
@@ -593,19 +597,25 @@ function saveProduct(){
   var minText=el('pMin').value;
   var maxText=el('pMax').value;
 
-  if(!name){alert('Inserisci il nome del prodotto.');return}
-  if(minText==='' || maxText===''){alert('Inserisci dose minima e massima.');return}
+  if(!name){
+    name=el('searchCommercial').value.trim() || 'Prodotto da completare';
+  }
 
+  // A dose fissa può essere espressa in un solo campo.
+  if(minText!=='' && maxText==='') maxText=minText;
+  if(maxText!=='' && minText==='') minText=maxText;
+
+  var hasDose=(minText!=='' && maxText!=='');
   var products=loadProducts();
-  var id=el('editId').value || ('p_'+Date.now());
+  var id=el('editId').value || ((hasDose?'p_':'draft_')+Date.now());
 
   var obj={
     id:id,
     name:name,
     scenario:el('pScenario').value.trim(),
     unit:el('pUnit').value,
-    min:Number(minText),
-    max:Number(maxText),
+    min:hasDose?Number(minText):null,
+    max:hasDose?Number(maxText):null,
     waterMin:Number(el('wMin').value)||0,
     waterMax:Number(el('wMax').value)||0,
     photo:currentPhoto||'',
@@ -613,15 +623,19 @@ function saveProduct(){
     holder:el('pHolder').value.trim(),
     active:el('pActive').value.trim(),
     activity:el('pActivity').value.trim(),
-    draft:false
+    draft:!hasDose
   };
 
   var idx=products.findIndex(function(x){return x.id===id});
   if(idx>=0)products[idx]=obj;else products.push(obj);
   if(!saveProducts(products)) return;
 
+  if(!hasDose){
+    alert('Prodotto salvato come bozza perché la dose non è ancora disponibile. Potrai completarlo in seguito dall’Archivio.');
+  }
+
   resetForm();
-  renderProductSelect(id);
+  renderProductSelect(hasDose?id:null);
   showScreen('archive');
 }
 function deleteProduct(){
@@ -829,6 +843,8 @@ function applyOfficial(index){
   el('searchCommercial').value=p.name||'';
   el('searchRegistration').value=p.registration||'';
   el('officialStatus').innerHTML='Dati anagrafici applicati. <span class="source-badge">Ministero Salute</span>';
+  // Prosegue automaticamente con la ricerca della scheda tecnica.
+  setTimeout(function(){ findTechnical(true); },120);
 }
 async function loadTesseract(){
   if(window.Tesseract)return;
@@ -916,7 +932,7 @@ function openWebSearch(){
   if(!q){alert('Inserisci prima il nome del prodotto.');return}
   window.open('https://www.google.com/search?q='+encodeURIComponent(q),'_blank','noopener');
 }
-async function findTechnical(){
+async function findTechnical(autoMode){
   var name=el('pName').value.trim()||el('searchCommercial').value.trim();
   var reg=el('pRegistration').value.trim()||el('searchRegistration').value.trim();
   if(!name && !reg){alert('Inserisci prima nome o numero di registrazione.');return}
@@ -938,11 +954,24 @@ async function findTechnical(){
         '</div></div>';
     }).join('');
     el('technicalResults')._items=items;
+
+    // Se la fonte è unica o nettamente più pertinente, la analizziamo subito.
+    if(items.length){
+      var first=items[0];
+      var second=items.length>1?items[1]:null;
+      var strong=(Number(first.score||0)>=7 && (!second || Number(first.score||0)>=Number(second.score||0)+3));
+      if(items.length===1 || strong){
+        el('technicalStatus').textContent='Fonte probabile trovata. Analisi automatica in corso…';
+        await analyzeUrl(first.url,true);
+      }else if(autoMode){
+        el('technicalStatus').textContent='Sono state trovate più fonti possibili. Scegli “Analizza” sulla scheda corretta.';
+      }
+    }
   }catch(e){
     el('technicalStatus').textContent='Ricerca automatica non disponibile: '+e.message;
   }
 }
-async function analyzeUrl(url){
+async function analyzeUrl(url,autoMode){
   url=(url||el('technicalUrl').value.trim());
   if(!url){alert('Inserisci o seleziona un URL.');return}
   el('technicalUrl').value=url;
@@ -952,42 +981,103 @@ async function analyzeUrl(url){
     var data=await apiJson('/api/analyze?'+new URLSearchParams({url:url}).toString());
     el('technicalStatus').textContent='Fonte analizzata. Verifica sempre i dati proposti.';
     renderAnalysis(data);
+    autoApplyAnalysis(data);
   }catch(e){
     el('technicalStatus').textContent='Non riesco ad analizzare questa fonte: '+e.message;
   }
 }
+function scenarioLabel(c){
+  return (c&&c.scenario)||'Impiego rilevato';
+}
 function renderAnalysis(data){
+  var scenarios=data.scenarios||[];
   var doses=data.doseCandidates||[];
   var waters=data.waterCandidates||[];
+
   var html='<div class="review"><strong>Dati tecnici trovati</strong>'+
-    '<div><span class="source-badge">Web · da verificare</span></div>';
-  if(doses.length){
-    html+='<div class="muted" style="margin-top:7px"><b>Dosi candidate:</b></div>';
-    doses.forEach(function(c,i){
-      html+='<button class="btn small secondary" style="margin:4px 4px 0 0" type="button" data-dose-candidate="'+i+'">'+
-        esc(c.label)+'</button>';
+    '<div><span class="source-badge">Web · verifica prima di salvare</span></div>';
+
+  if(scenarios.length>1){
+    html+='<div class="muted" style="margin-top:8px"><b>Più impieghi/scenari rilevati:</b> scegli quello che corrisponde al tuo caso.</div>';
+    scenarios.forEach(function(s,i){
+      var label=esc(scenarioLabel(s));
+      var dose=s.dose?(' · '+esc(s.dose.label)):'';
+      var water=s.water?(' · acqua '+esc(s.water.label)):'';
+      html+='<button class="btn small secondary" style="margin:5px 5px 0 0" type="button" data-scenario-candidate="'+i+'">'+
+        label+dose+water+'</button>';
     });
+  }else if(scenarios.length===1){
+    var s=scenarios[0];
+    html+='<div class="muted" style="margin-top:8px"><b>Scenario rilevato:</b> '+esc(scenarioLabel(s))+'</div>';
+    if(s.dose) html+='<div><span class="pill">Dose '+esc(s.dose.label)+'</span></div>';
+    if(s.water) html+='<div><span class="pill">Acqua '+esc(s.water.label)+'</span></div>';
+    html+='<div class="muted" style="margin-top:6px">I campi sono stati precompilati automaticamente. Il salvataggio vale come conferma.</div>';
+  }else{
+    if(doses.length){
+      html+='<div class="muted" style="margin-top:7px"><b>Dosi candidate:</b></div>';
+      doses.forEach(function(c,i){
+        html+='<button class="btn small secondary" style="margin:4px 4px 0 0" type="button" data-dose-candidate="'+i+'">'+
+          esc(c.label)+'</button>';
+      });
+    }
+    if(waters.length){
+      html+='<div class="muted" style="margin-top:7px"><b>Volumi acqua candidati:</b></div>';
+      waters.forEach(function(c,i){
+        html+='<button class="btn small secondary" style="margin:4px 4px 0 0" type="button" data-water-candidate="'+i+'">'+
+          esc(c.label)+'</button>';
+      });
+    }
+    if(!doses.length && !waters.length){
+      html+='<div class="muted" style="margin-top:7px">Nessun valore strutturato abbastanza chiaro da compilare automaticamente.</div>';
+    }
   }
-  if(waters.length){
-    html+='<div class="muted" style="margin-top:7px"><b>Volumi acqua candidati:</b></div>';
-    waters.forEach(function(c,i){
-      html+='<button class="btn small secondary" style="margin:4px 4px 0 0" type="button" data-water-candidate="'+i+'">'+
-        esc(c.label)+'</button>';
-    });
-  }
-  if(!doses.length && !waters.length){
-    html+='<div class="muted" style="margin-top:7px">Nessun valore strutturato abbastanza chiaro da applicare automaticamente.</div>';
-  }
+
   if(data.snippet)html+='<div class="muted" style="margin-top:9px"><b>Estratto:</b> '+esc(data.snippet)+'</div>';
   html+='</div>';
+
   el('analysisResult').innerHTML=html;
   el('analysisResult')._data=data;
+}
+function applyScenarioCandidate(index){
+  var data=el('analysisResult')._data||{};
+  var s=(data.scenarios||[])[Number(index)];
+  if(!s)return;
+  if(s.scenario) el('pScenario').value=s.scenario;
+  if(s.dose) applyParsedDose({a:s.dose.min,b:s.dose.max,unit:s.dose.unit,area:s.dose.area});
+  if(s.water){
+    el('wMin').value=s.water.min;
+    el('wMax').value=s.water.max;
+  }
+  el('technicalStatus').textContent='Scenario applicato automaticamente ai campi. Controlla e poi salva.';
+}
+function autoApplyAnalysis(data){
+  var scenarios=data.scenarios||[];
+
+  // Caso ideale: un solo scenario tecnico riconosciuto.
+  if(scenarios.length===1){
+    applyScenarioCandidate(0);
+    return;
+  }
+
+  // Fallback: un'unica dose e, se presente, un unico volume acqua.
+  var doses=data.doseCandidates||[];
+  var waters=data.waterCandidates||[];
+  if(!scenarios.length && doses.length===1){
+    applyParsedDose({a:doses[0].min,b:doses[0].max,unit:doses[0].unit,area:doses[0].area});
+    if(doses[0].scenario) el('pScenario').value=doses[0].scenario;
+    if(waters.length===1){
+      el('wMin').value=waters[0].min;
+      el('wMax').value=waters[0].max;
+    }
+    el('technicalStatus').textContent='Dose'+(waters.length===1?' e volume d’acqua':'')+' precompilati automaticamente. Controlla e salva.';
+  }
 }
 function applyDoseCandidate(index){
   var data=el('analysisResult')._data||{};
   var c=(data.doseCandidates||[])[Number(index)];
   if(!c)return;
   applyParsedDose({a:c.min,b:c.max,unit:c.unit,area:c.area});
+  if(c.scenario)el('pScenario').value=c.scenario;
 }
 function applyWaterCandidate(index){
   var data=el('analysisResult')._data||{};
@@ -1039,8 +1129,10 @@ function wire(){
     }
   });
   el('analysisResult').addEventListener('click',function(e){
+    var s=e.target.closest('[data-scenario-candidate]');
     var d=e.target.closest('[data-dose-candidate]');
     var w=e.target.closest('[data-water-candidate]');
+    if(s)applyScenarioCandidate(s.getAttribute('data-scenario-candidate'));
     if(d)applyDoseCandidate(d.getAttribute('data-dose-candidate'));
     if(w)applyWaterCandidate(w.getAttribute('data-water-candidate'));
   });
@@ -1063,7 +1155,7 @@ function start(){
   }
   wire();
   renderProductSelect();
-  el('status').textContent='Pronta · versione 1.3.1 assistita';
+  el('status').textContent='Pronta · versione 1.3.2 auto-dati';
 }
 
 window.addEventListener('DOMContentLoaded',start);
