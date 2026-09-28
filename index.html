@@ -68,6 +68,36 @@ hr{border:0;border-top:1px solid var(--line);margin:14px 0}
 .note{background:#fff8df;border:1px solid #e4cb73;border-radius:12px;padding:11px;font-size:12px;line-height:1.45}
 footer{text-align:center;color:#7a8980;font-size:11px;padding:0 14px 25px}
 
+.assist-box{
+  margin:0 0 14px;border:1px solid #cfe0d5;border-radius:16px;
+  background:#f7fbf8;padding:13px
+}
+.assist-title{font-weight:900;margin-bottom:4px}
+.assist-grid{display:grid;grid-template-columns:1.5fr 1fr auto;gap:8px;align-items:end}
+@media(max-width:680px){.assist-grid{grid-template-columns:1fr}}
+.source-badge{
+  display:inline-block;border-radius:999px;padding:4px 7px;margin:2px 3px 2px 0;
+  font-size:10px;font-weight:850;background:#edf2ff;color:#3a527c
+}
+.match-card{
+  border:1px solid var(--line);border-radius:13px;padding:11px;margin-top:9px;background:white
+}
+.match-head{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}
+.match-name{font-weight:900}
+.meta-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
+@media(max-width:600px){.meta-grid{grid-template-columns:1fr}}
+.tech-card{
+  border:1px solid #d8e3dc;border-radius:13px;padding:10px;margin-top:8px;background:#fff
+}
+.tech-url{font-size:11px;color:#66756d;word-break:break-all;margin-top:4px}
+.review{
+  border:1px solid #d5e5da;background:#f4faf6;border-radius:13px;padding:11px;margin-top:10px
+}
+.review strong{display:block;margin-bottom:5px}
+.spinner{display:inline-block;width:15px;height:15px;border:2px solid #c7d8cc;border-top-color:var(--green);border-radius:50%;animation:spin .8s linear infinite;vertical-align:-2px;margin-right:6px}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+
 .photo-box{
   margin-top:12px;border:1.5px dashed #b8c9be;border-radius:14px;
   padding:12px;background:#fbfdfb
@@ -181,6 +211,27 @@ footer{text-align:center;color:#7a8980;font-size:11px;padding:0 14px 25px}
     <h2 id="formTitle">Nuovo prodotto</h2>
     <input id="editId" type="hidden">
 
+    <div class="assist-box">
+      <div class="assist-title">🔎 Identifica prodotto</div>
+      <div class="muted">
+        Cerca per nome commerciale, anche parziale, oppure per numero di registrazione.
+        I dati anagrafici vengono confrontati con l'Open Data del Ministero della Salute.
+      </div>
+      <div class="assist-grid" style="margin-top:10px">
+        <div>
+          <label for="searchCommercial">Nome commerciale</label>
+          <input id="searchCommercial" placeholder="Es. Turfene Plus">
+        </div>
+        <div>
+          <label for="searchRegistration">N. registrazione</label>
+          <input id="searchRegistration" inputmode="numeric" placeholder="Es. 15291">
+        </div>
+        <button id="officialSearchBtn" class="btn primary" type="button">Cerca dati</button>
+      </div>
+      <div id="officialStatus" class="muted" style="margin-top:8px"></div>
+      <div id="officialResults"></div>
+    </div>
+
     <div class="grid2">
       <div>
         <label for="pName">Nome prodotto</label>
@@ -189,6 +240,25 @@ footer{text-align:center;color:#7a8980;font-size:11px;padding:0 14px 25px}
       <div>
         <label for="pScenario">Scenario / uso</label>
         <input id="pScenario" placeholder="Es. prato dal 2° anno">
+      </div>
+    </div>
+
+    <div class="meta-grid">
+      <div>
+        <label for="pRegistration">Numero registrazione</label>
+        <input id="pRegistration" inputmode="numeric" placeholder="Es. 15291">
+      </div>
+      <div>
+        <label for="pHolder">Titolare / produttore</label>
+        <input id="pHolder" placeholder="Impresa titolare">
+      </div>
+      <div>
+        <label for="pActive">Sostanze attive</label>
+        <input id="pActive" placeholder="Es. Dicamba; Mecoprop-P">
+      </div>
+      <div>
+        <label for="pActivity">Attività / formulazione</label>
+        <input id="pActivity" placeholder="Es. erbicida · liquido solubile">
       </div>
     </div>
 
@@ -236,8 +306,39 @@ footer{text-align:center;color:#7a8980;font-size:11px;padding:0 14px 25px}
             Scatta una foto o scegli l'immagine dell'etichetta. La foto viene ridimensionata prima del salvataggio.
           </div>
           <button id="removePhotoBtn" class="btn secondary small hidden" style="margin-top:8px" type="button">Rimuovi foto</button>
+          <button id="saveDraftBtn" class="btn secondary small hidden" style="margin-top:8px" type="button">Salva foto come bozza</button>
+          <button id="ocrBtn" class="btn secondary small hidden" style="margin-top:8px" type="button">Leggi etichetta (OCR)</button>
         </div>
       </div>
+    </div>
+
+
+    <div id="ocrPanel" class="review hidden">
+      <strong>Testo letto dalla foto</strong>
+      <div id="ocrStatus" class="muted"></div>
+      <div id="ocrText" class="muted" style="white-space:pre-wrap;max-height:160px;overflow:auto;margin-top:7px"></div>
+    </div>
+
+    <div class="assist-box" style="margin-top:14px">
+      <div class="assist-title">🌐 Scheda tecnica / etichetta online</div>
+      <div class="muted">
+        Cerca possibili schede online partendo dal nome e dal numero di registrazione.
+        Prima di applicare dosi o volumi, controlla sempre la fonte proposta.
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
+        <button id="findTechnicalBtn" class="btn secondary small" type="button">Trova schede online</button>
+        <button id="openWebSearchBtn" class="btn secondary small" type="button">Apri ricerca web</button>
+      </div>
+      <div id="technicalStatus" class="muted" style="margin-top:8px"></div>
+      <div id="technicalResults"></div>
+
+      <hr>
+      <label for="technicalUrl">Oppure incolla URL di una scheda/etichetta</label>
+      <div style="display:grid;grid-template-columns:1fr auto;gap:8px">
+        <input id="technicalUrl" type="url" placeholder="https://...">
+        <button id="analyzeUrlBtn" class="btn secondary" type="button">Analizza</button>
+      </div>
+      <div id="analysisResult"></div>
     </div>
 
     <button id="saveBtn" class="btn full primary" style="margin-top:14px" type="button">Salva prodotto</button>
@@ -246,7 +347,7 @@ footer{text-align:center;color:#7a8980;font-size:11px;padding:0 14px 25px}
 </section>
 </main>
 
-<footer>Dose Verde · versione stabile 1.2 foto</footer>
+<footer>Dose Verde · versione 1.3 assistita</footer>
 
 <script>
 (function(){
@@ -326,10 +427,10 @@ function showScreen(name){
   window.scrollTo(0,0);
 }
 function renderProductSelect(preselect){
-  var products=loadProducts().slice().sort(function(a,b){return a.name.localeCompare(b.name)});
-  el('calcProduct').innerHTML=products.map(function(p){
-    return '<option value="'+esc(p.id)+'">'+esc(p.name)+'</option>';
-  }).join('');
+  var products=loadProducts().filter(function(p){return !p.draft && p.min!=null && p.max!=null;}).slice().sort(function(a,b){return a.name.localeCompare(b.name)});
+  el('calcProduct').innerHTML=products.length
+    ? products.map(function(p){return '<option value="'+esc(p.id)+'">'+esc(p.name)+'</option>';}).join('')
+    : '<option value="">Nessun prodotto completo</option>';
   if(preselect && products.some(function(p){return p.id===preselect})){
     el('calcProduct').value=preselect;
   }
@@ -417,16 +518,18 @@ function renderArchive(){
     var thumb=p.photo
       ? '<img class="archive-thumb" src="'+p.photo+'" alt="Etichetta">'
       : '<div class="archive-empty">🌱</div>';
+    var info = p.draft
+      ? '<span class="pill">Da completare</span>'
+      : '<span class="pill">'+fmt(p.min,2)+'–'+fmt(p.max,2)+' '+unitLabel(p.unit)+'</span>'+
+        ((p.waterMin||p.waterMax)?'<span class="pill">'+fmt(p.waterMin||p.waterMax,0)+'–'+fmt(p.waterMax||p.waterMin,0)+' L/ha acqua</span>':'');
     return '<div class="product">'+
       '<div class="archive-main">'+thumb+
       '<div><strong>'+esc(p.name)+'</strong>'+
-      '<div class="muted">'+esc(p.scenario||'')+'</div>'+
-      '<div><span class="pill">'+fmt(p.min,2)+'–'+fmt(p.max,2)+' '+unitLabel(p.unit)+'</span>'+
-      ((p.waterMin||p.waterMax)?'<span class="pill">'+fmt(p.waterMin||p.waterMax,0)+'–'+fmt(p.waterMax||p.waterMin,0)+' L/ha acqua</span>':'')+
-      '</div></div></div>'+
+      '<div class="muted">'+esc(p.scenario||'')+(p.registration?' · Reg. '+esc(p.registration):'')+'</div>'+
+      '<div>'+info+'</div></div></div>'+
       '<div class="actions">'+
       '<button class="btn small secondary" type="button" data-action="edit" data-id="'+esc(p.id)+'">Apri</button>'+
-      '<button class="btn small primary" type="button" data-action="use" data-id="'+esc(p.id)+'">Usa</button>'+
+      (p.draft?'':'<button class="btn small primary" type="button" data-action="use" data-id="'+esc(p.id)+'">Usa</button>')+
       '</div></div>';
   }).join('');
 }
@@ -439,6 +542,21 @@ function resetForm(){
   el('pMax').value='';
   el('wMin').value='';
   el('wMax').value='';
+  el('pRegistration').value='';
+  el('pHolder').value='';
+  el('pActive').value='';
+  el('pActivity').value='';
+  el('searchCommercial').value='';
+  el('searchRegistration').value='';
+  el('officialResults').innerHTML='';
+  el('officialStatus').textContent='';
+  el('technicalResults').innerHTML='';
+  el('technicalStatus').textContent='';
+  el('technicalUrl').value='';
+  el('analysisResult').innerHTML='';
+  el('ocrPanel').classList.add('hidden');
+  el('ocrText').textContent='';
+  el('ocrStatus').textContent='';
   el('pPhoto').value='';
   currentPhoto='';
   updatePhotoPreview();
@@ -457,10 +575,16 @@ function editProduct(id){
   el('pMax').value=p.max!=null?p.max:'';
   el('wMin').value=p.waterMin||'';
   el('wMax').value=p.waterMax||'';
+  el('pRegistration').value=p.registration||'';
+  el('pHolder').value=p.holder||'';
+  el('pActive').value=p.active||'';
+  el('pActivity').value=p.activity||'';
+  el('searchCommercial').value=p.name||'';
+  el('searchRegistration').value=p.registration||'';
   currentPhoto=p.photo||'';
   el('pPhoto').value='';
   updatePhotoPreview();
-  el('formTitle').textContent='Modifica prodotto';
+  el('formTitle').textContent=p.draft?'Bozza prodotto':'Modifica prodotto';
   el('deleteBtn').classList.remove('hidden');
   showScreen('product');
 }
@@ -484,7 +608,12 @@ function saveProduct(){
     max:Number(maxText),
     waterMin:Number(el('wMin').value)||0,
     waterMax:Number(el('wMax').value)||0,
-    photo:currentPhoto||''
+    photo:currentPhoto||'',
+    registration:el('pRegistration').value.trim(),
+    holder:el('pHolder').value.trim(),
+    active:el('pActive').value.trim(),
+    activity:el('pActivity').value.trim(),
+    draft:false
   };
 
   var idx=products.findIndex(function(x){return x.id===id});
@@ -513,11 +642,15 @@ function updatePhotoPreview(){
     el('photoPreview').classList.remove('hidden');
     el('photoEmpty').classList.add('hidden');
     el('removePhotoBtn').classList.remove('hidden');
+    el('saveDraftBtn').classList.remove('hidden');
+    el('ocrBtn').classList.remove('hidden');
   }else{
     el('photoPreview').src='';
     el('photoPreview').classList.add('hidden');
     el('photoEmpty').classList.remove('hidden');
     el('removePhotoBtn').classList.add('hidden');
+    el('saveDraftBtn').classList.add('hidden');
+    el('ocrBtn').classList.add('hidden');
   }
 }
 function resizePhoto(file){
@@ -558,6 +691,286 @@ function removePhoto(){
   updatePhotoPreview();
 }
 
+
+function savePhotoDraft(){
+  if(!currentPhoto){
+    alert('Prima scatta o scegli una foto.');
+    return;
+  }
+
+  var products=loadProducts();
+  var id=el('editId').value || ('draft_'+Date.now());
+  var existing=products.find(function(x){return x.id===id});
+
+  var typedName=el('pName').value.trim();
+  var fallbackName='Prodotto da completare';
+  if(!typedName && !existing){
+    var now=new Date();
+    fallbackName+=' · '+now.toLocaleDateString('it-IT')+' '+now.toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'});
+  }
+
+  var obj={
+    id:id,
+    name:typedName || (existing&&existing.name) || fallbackName,
+    scenario:el('pScenario').value.trim() || (existing&&existing.scenario) || '',
+    unit:el('pUnit').value || (existing&&existing.unit) || 'L_ha',
+    min:(el('pMin').value!==''?Number(el('pMin').value):(existing&&existing.min!=null?existing.min:null)),
+    max:(el('pMax').value!==''?Number(el('pMax').value):(existing&&existing.max!=null?existing.max:null)),
+    waterMin:Number(el('wMin').value)||((existing&&existing.waterMin)||0),
+    waterMax:Number(el('wMax').value)||((existing&&existing.waterMax)||0),
+    photo:currentPhoto,
+    registration:el('pRegistration').value.trim() || (existing&&existing.registration) || '',
+    holder:el('pHolder').value.trim() || (existing&&existing.holder) || '',
+    active:el('pActive').value.trim() || (existing&&existing.active) || '',
+    activity:el('pActivity').value.trim() || (existing&&existing.activity) || '',
+    draft:true
+  };
+
+  var idx=products.findIndex(function(x){return x.id===id});
+  if(idx>=0) products[idx]=obj; else products.push(obj);
+  if(!saveProducts(products)) return;
+
+  el('editId').value=id;
+  el('pName').value=obj.name;
+  el('formTitle').textContent='Bozza prodotto';
+  el('deleteBtn').classList.remove('hidden');
+  alert('Foto salvata come bozza. Puoi completare i dati adesso o più tardi dall’Archivio.');
+}
+
+
+function setBusy(id,text){
+  var node=el(id);
+  node.innerHTML='<span class="spinner"></span>'+esc(text);
+}
+function normalizeCategory(activity){
+  var t=(activity||'').toLowerCase();
+  if(t.indexOf('erbic')>=0 || t.indexOf('diserb')>=0)return 'Erbicida';
+  if(t.indexOf('fungic')>=0)return 'Fungicida';
+  if(t.indexOf('insett')>=0)return 'Insetticida';
+  return '';
+}
+async function officialSearch(){
+  var q=el('searchCommercial').value.trim();
+  var reg=el('searchRegistration').value.trim();
+  if(!q && !reg){
+    alert('Inserisci il nome commerciale o il numero di registrazione.');
+    return;
+  }
+  el('officialResults').innerHTML='';
+  setBusy('officialStatus','Ricerca nel dataset del Ministero della Salute…');
+  try{
+    var url='/api/search?'+new URLSearchParams({q:q,reg:reg}).toString();
+    var r=await fetch(url,{headers:{'Accept':'application/json'}});
+    var data=await r.json();
+    if(!r.ok)throw new Error(data.error||'Ricerca non disponibile');
+    el('officialStatus').textContent=(data.matches||[]).length
+      ? 'Trovati '+data.matches.length+' risultati · dataset '+(data.datasetDate||'Ministero della Salute')
+      : 'Nessun prodotto trovato nel dataset ufficiale.';
+    renderOfficialMatches(data.matches||[]);
+  }catch(e){
+    el('officialStatus').textContent='Ricerca ufficiale non disponibile: '+e.message;
+  }
+}
+function renderOfficialMatches(items){
+  el('officialResults').innerHTML=items.map(function(p,i){
+    var status=p.status?'<span class="source-badge">'+esc(p.status)+'</span>':'';
+    var active=p.active?'<div class="muted"><b>Sostanze:</b> '+esc(p.active)+'</div>':'';
+    return '<div class="match-card">'+
+      '<div class="match-head"><div><div class="match-name">'+esc(p.name||'')+'</div>'+
+      '<div class="muted">Reg. '+esc(p.registration||'—')+' · '+esc(p.holder||'')+'</div></div>'+
+      '<button class="btn small primary" type="button" data-official-index="'+i+'">Usa dati</button></div>'+
+      '<div style="margin-top:6px"><span class="source-badge">Ministero Salute</span>'+status+'</div>'+
+      active+
+      (p.activity?'<div class="muted"><b>Attività:</b> '+esc(p.activity)+'</div>':'')+
+      (p.formulation?'<div class="muted"><b>Formulazione:</b> '+esc(p.formulation)+'</div>':'')+
+      '</div>';
+  }).join('');
+  el('officialResults')._items=items;
+}
+function applyOfficial(index){
+  var items=el('officialResults')._items||[];
+  var p=items[Number(index)];
+  if(!p)return;
+  el('pName').value=p.name||el('pName').value;
+  el('pRegistration').value=p.registration||'';
+  el('pHolder').value=p.holder||'';
+  el('pActive').value=p.active||'';
+  el('pActivity').value=[p.activity,p.formulation].filter(Boolean).join(' · ');
+  el('searchCommercial').value=p.name||'';
+  el('searchRegistration').value=p.registration||'';
+  el('officialStatus').innerHTML='Dati anagrafici applicati. <span class="source-badge">Ministero Salute</span>';
+}
+async function loadTesseract(){
+  if(window.Tesseract)return;
+  await new Promise(function(resolve,reject){
+    var s=document.createElement('script');
+    s.src='https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js';
+    s.onload=resolve;s.onerror=reject;document.head.appendChild(s);
+  });
+}
+function parseOCRText(text){
+  var out={registration:'',dose:null,water:null};
+  var reg=text.match(/(?:registrazione|reg(?:istrazione)?\.?|n\.?\s*reg(?:istrazione)?\.?)\s*(?:ministero[^0-9]{0,25})?(?:n\.?\s*)?(\d{3,6})/i);
+  if(reg)out.registration=reg[1];
+
+  var compact=text.replace(/\s+/g,' ');
+  var ranges=[];
+  var re=/(\d+(?:[.,]\d+)?)\s*[-–]\s*(\d+(?:[.,]\d+)?)\s*(ml|l|litri|kg|g)\s*(?:\/|per)\s*(ha|ettaro|ettari|100\s*(?:m²|m2|mq))/gi;
+  var m;
+  while((m=re.exec(compact))!==null){
+    var a=Number(m[1].replace(',','.')),b=Number(m[2].replace(',','.'));
+    var unit=m[3].toLowerCase(),area=m[4].toLowerCase();
+    var around=compact.slice(Math.max(0,m.index-100),Math.min(compact.length,re.lastIndex+100)).toLowerCase();
+    var rec={a:a,b:b,unit:unit,area:area};
+    if((unit==='l'||unit==='litri') && a>=50 && /acqua|volume|miscela/.test(around)) out.water=rec;
+    else if(/dose|dosi|impiego|applic/.test(around) && !out.dose) out.dose=rec;
+  }
+  return out;
+}
+function applyParsedDose(c){
+  if(!c)return;
+  var area=c.area||'';
+  var u=c.unit||'';
+  if(area.indexOf('ha')>=0 || area.indexOf('ettar')>=0){
+    if(u==='l'||u==='litri')el('pUnit').value='L_ha';
+    else if(u==='kg')el('pUnit').value='kg_ha';
+    else if(u==='ml'){ el('pUnit').value='L_ha'; c.a/=1000;c.b/=1000; }
+    else if(u==='g'){ el('pUnit').value='kg_ha'; c.a/=1000;c.b/=1000; }
+  }else{
+    if(u==='ml')el('pUnit').value='ml_100m2';
+    if(u==='g')el('pUnit').value='g_100m2';
+  }
+  el('pMin').value=Number(c.a.toFixed(4));
+  el('pMax').value=Number(c.b.toFixed(4));
+}
+async function runOCR(){
+  if(!currentPhoto){alert('Prima scatta o scegli una foto.');return}
+  el('ocrPanel').classList.remove('hidden');
+  setBusy('ocrStatus','Lettura etichetta…');
+  try{
+    await loadTesseract();
+    var r=await Tesseract.recognize(currentPhoto,'ita+eng',{
+      logger:function(m){
+        if(typeof m.progress==='number'){
+          el('ocrStatus').textContent=(m.status||'OCR')+' '+Math.round(m.progress*100)+'%';
+        }
+      }
+    });
+    var text=r.data.text||'';
+    el('ocrText').textContent=text;
+    var parsed=parseOCRText(text);
+    if(parsed.registration){
+      el('searchRegistration').value=parsed.registration;
+      el('pRegistration').value=parsed.registration;
+    }
+    if(parsed.dose)applyParsedDose(parsed.dose);
+    if(parsed.water){
+      el('wMin').value=parsed.water.a;
+      el('wMax').value=parsed.water.b;
+    }
+    el('ocrStatus').textContent='Lettura completata. Controlla i valori prima di salvare.';
+    if(parsed.registration){
+      officialSearch();
+    }
+  }catch(e){
+    el('ocrStatus').textContent='OCR non disponibile: '+e.message;
+  }
+}
+function buildWebQuery(){
+  var name=el('pName').value.trim()||el('searchCommercial').value.trim();
+  var reg=el('pRegistration').value.trim()||el('searchRegistration').value.trim();
+  return [name,reg,'etichetta scheda tecnica dosi pdf'].filter(Boolean).join(' ');
+}
+function openWebSearch(){
+  var q=buildWebQuery();
+  if(!q){alert('Inserisci prima il nome del prodotto.');return}
+  window.open('https://www.google.com/search?q='+encodeURIComponent(q),'_blank','noopener');
+}
+async function findTechnical(){
+  var name=el('pName').value.trim()||el('searchCommercial').value.trim();
+  var reg=el('pRegistration').value.trim()||el('searchRegistration').value.trim();
+  if(!name && !reg){alert('Inserisci prima nome o numero di registrazione.');return}
+  el('technicalResults').innerHTML='';
+  setBusy('technicalStatus','Ricerca di possibili schede tecniche…');
+  try{
+    var r=await fetch('/api/find-technical?'+new URLSearchParams({q:name,reg:reg}).toString());
+    var data=await r.json();
+    if(!r.ok)throw new Error(data.error||'Ricerca non disponibile');
+    var items=data.results||[];
+    el('technicalStatus').textContent=items.length
+      ? 'Fonti candidate trovate. Apri o analizza solo quelle pertinenti al prodotto.'
+      : 'Nessuna scheda trovata automaticamente. Puoi usare “Apri ricerca web”.';
+    el('technicalResults').innerHTML=items.map(function(x,i){
+      return '<div class="tech-card">'+
+        '<b>'+esc(x.title||'Fonte online')+'</b>'+
+        '<div class="tech-url">'+esc(x.url||'')+'</div>'+
+        '<div style="display:flex;gap:7px;flex-wrap:wrap;margin-top:8px">'+
+        '<button class="btn small secondary" type="button" data-tech-open="'+i+'">Apri</button>'+
+        '<button class="btn small primary" type="button" data-tech-analyze="'+i+'">Analizza</button>'+
+        '</div></div>';
+    }).join('');
+    el('technicalResults')._items=items;
+  }catch(e){
+    el('technicalStatus').textContent='Ricerca automatica non disponibile: '+e.message;
+  }
+}
+async function analyzeUrl(url){
+  url=(url||el('technicalUrl').value.trim());
+  if(!url){alert('Inserisci o seleziona un URL.');return}
+  el('technicalUrl').value=url;
+  setBusy('technicalStatus','Analisi della fonte online…');
+  el('analysisResult').innerHTML='';
+  try{
+    var r=await fetch('/api/analyze?'+new URLSearchParams({url:url}).toString());
+    var data=await r.json();
+    if(!r.ok)throw new Error(data.error||'Analisi non disponibile');
+    el('technicalStatus').textContent='Fonte analizzata. Verifica sempre i dati proposti.';
+    renderAnalysis(data);
+  }catch(e){
+    el('technicalStatus').textContent='Non riesco ad analizzare questa fonte: '+e.message;
+  }
+}
+function renderAnalysis(data){
+  var doses=data.doseCandidates||[];
+  var waters=data.waterCandidates||[];
+  var html='<div class="review"><strong>Dati tecnici trovati</strong>'+
+    '<div><span class="source-badge">Web · da verificare</span></div>';
+  if(doses.length){
+    html+='<div class="muted" style="margin-top:7px"><b>Dosi candidate:</b></div>';
+    doses.forEach(function(c,i){
+      html+='<button class="btn small secondary" style="margin:4px 4px 0 0" type="button" data-dose-candidate="'+i+'">'+
+        esc(c.label)+'</button>';
+    });
+  }
+  if(waters.length){
+    html+='<div class="muted" style="margin-top:7px"><b>Volumi acqua candidati:</b></div>';
+    waters.forEach(function(c,i){
+      html+='<button class="btn small secondary" style="margin:4px 4px 0 0" type="button" data-water-candidate="'+i+'">'+
+        esc(c.label)+'</button>';
+    });
+  }
+  if(!doses.length && !waters.length){
+    html+='<div class="muted" style="margin-top:7px">Nessun valore strutturato abbastanza chiaro da applicare automaticamente.</div>';
+  }
+  if(data.snippet)html+='<div class="muted" style="margin-top:9px"><b>Estratto:</b> '+esc(data.snippet)+'</div>';
+  html+='</div>';
+  el('analysisResult').innerHTML=html;
+  el('analysisResult')._data=data;
+}
+function applyDoseCandidate(index){
+  var data=el('analysisResult')._data||{};
+  var c=(data.doseCandidates||[])[Number(index)];
+  if(!c)return;
+  applyParsedDose({a:c.min,b:c.max,unit:c.unit,area:c.area});
+}
+function applyWaterCandidate(index){
+  var data=el('analysisResult')._data||{};
+  var c=(data.waterCandidates||[])[Number(index)];
+  if(!c)return;
+  el('wMin').value=c.min;
+  el('wMax').value=c.max;
+}
+
 function newProduct(){
   resetForm();
   showScreen('product');
@@ -576,6 +989,35 @@ function wire(){
   el('deleteBtn').addEventListener('click',deleteProduct);
   el('pPhoto').addEventListener('change',photoChanged);
   el('removePhotoBtn').addEventListener('click',removePhoto);
+  el('saveDraftBtn').addEventListener('click',savePhotoDraft);
+  el('ocrBtn').addEventListener('click',runOCR);
+  el('officialSearchBtn').addEventListener('click',officialSearch);
+  el('findTechnicalBtn').addEventListener('click',findTechnical);
+  el('openWebSearchBtn').addEventListener('click',openWebSearch);
+  el('analyzeUrlBtn').addEventListener('click',function(){analyzeUrl();});
+  el('officialResults').addEventListener('click',function(e){
+    var b=e.target.closest('[data-official-index]');
+    if(b)applyOfficial(b.getAttribute('data-official-index'));
+  });
+  el('technicalResults').addEventListener('click',function(e){
+    var items=el('technicalResults')._items||[];
+    var open=e.target.closest('[data-tech-open]');
+    var analyze=e.target.closest('[data-tech-analyze]');
+    if(open){
+      var item=items[Number(open.getAttribute('data-tech-open'))];
+      if(item)window.open(item.url,'_blank','noopener');
+    }
+    if(analyze){
+      var item2=items[Number(analyze.getAttribute('data-tech-analyze'))];
+      if(item2)analyzeUrl(item2.url);
+    }
+  });
+  el('analysisResult').addEventListener('click',function(e){
+    var d=e.target.closest('[data-dose-candidate]');
+    var w=e.target.closest('[data-water-candidate]');
+    if(d)applyDoseCandidate(d.getAttribute('data-dose-candidate'));
+    if(w)applyWaterCandidate(w.getAttribute('data-water-candidate'));
+  });
   el('search').addEventListener('input',renderArchive);
 
   el('archiveList').addEventListener('click',function(e){
@@ -595,7 +1037,7 @@ function start(){
   }
   wire();
   renderProductSelect();
-  el('status').textContent='Pronta · versione 1.2 foto';
+  el('status').textContent='Pronta · versione 1.3 assistita';
 }
 
 window.addEventListener('DOMContentLoaded',start);
