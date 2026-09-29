@@ -1,38 +1,49 @@
-DOSE VERDE 1.5.3 — RICERCA SCHEDE ONLINE MIGLIORATA
+DOSE VERDE 1.5.4 — SCHEDA TECNICA PERSISTENTE E SCENARI RIUTILIZZABILI
 
-PROBLEMA
-La ricerca automatica precedente dipendeva quasi interamente dal feed RSS pubblico di Bing e usava
-una query molto restrittiva. Questo poteva produrre zero risultati anche quando Google o altri motori
-mostravano chiaramente la scheda del prodotto.
+NOVITÀ PRINCIPALE
+Quando Dose Verde analizza una scheda/etichetta, non salva più soltanto la dose scelta.
+Con il prodotto vengono conservati anche:
+- fonte della scheda/etichetta;
+- estratto tecnico;
+- scenari/impieghi individuati;
+- dose minima/massima per ogni scenario;
+- volume d'acqua associato quando rilevato;
+- contesto testuale utile dell'etichetta.
 
-NUOVA STRATEGIA
-La funzione "Trova schede online" ora:
-1. prova l'eventuale etichetta diretta tramite numero di registrazione;
-2. esegue più query separate e meno rigide;
-3. prova Bing RSS;
-4. se i risultati sono scarsi, prova anche Bing HTML;
-5. se ancora insufficienti, prova DuckDuckGo HTML;
-6. cerca esplicitamente su WinBDF;
-7. quando riconosce il titolare, aggiunge una ricerca sul sito del produttore
-   (Bayer, Syngenta, BASF, Corteva, Adama, Sipcam, Sumitomo, Certis Belchim, UPL, FMC, ecc.);
-8. filtra forum, social, marketplace e pagine generiche;
-9. mantiene separata l'analisi: un PDF del produttore che restituisce HTTP 403 può essere aperto
-   normalmente e poi caricato con "Analizza PDF caricato".
+ARCHIVIO
+Per i prodotti che possiedono dati tecnici salvati compare il pulsante:
+“Scheda etichetta”
 
-ESEMPIO
-Per prodotti come MOVENTO 48 SC, la nuova ricerca prova anche:
-- "MOVENTO 48 SC" etichetta pdf
-- "MOVENTO 48 SC" "scheda tecnica"
-- site:winbdf.it "MOVENTO 48 SC" pdf
-- site:cropscience.bayer.it "MOVENTO 48 SC"  (se il titolare è riconosciuto come Bayer)
+Il box resta disponibile anche dopo aver chiuso e riaperto l'app.
+Mostra tutti gli scenari rilevati e indica quale è quello attivo.
+
+CAMBIO SCENARIO
+Nel box dell'Archivio puoi premere:
+“Usa questo scenario”
+
+Dose Verde aggiorna immediatamente:
+- scenario/impiego attivo;
+- unità di dose;
+- dose minima e massima;
+- volume d'acqua;
+- tipo di bersaglio quando ricavabile dall'unità.
+
+Non serve rifare la ricerca o rileggere il PDF.
+
+MODIFICA PRODOTTO
+Quando riapri un prodotto, il box “Dati tecnici trovati” viene ripristinato automaticamente.
+Puoi quindi scegliere un altro scenario e salvare.
+
+COMPATIBILITÀ
+I prodotti già salvati con versioni precedenti continuano a funzionare, ma non possono avere retroattivamente
+la scheda tecnica se questa non era stata conservata. Per quei prodotti:
+1. Apri il prodotto;
+2. analizza nuovamente la scheda/PDF;
+3. salva una volta.
+Da quel momento la scheda rimane associata al prodotto.
+
+PWA
+Cache aggiornata a v1.5.4. Dopo il deploy apri una volta l'app online per aggiornare la PWA installata.
 
 AGGIORNAMENTO
-Sostituisci nella root tutti i file del pacchetto oppure, come minimo:
-- index.html
-- find-technical.js
-- package.json
-- sw.js
-
-Consigliato: caricare tutti i file dello ZIP per mantenere la versione coerente.
-
-Dopo il deploy, apri una volta Dose Verde online. La PWA aggiornerà la cache alla v1.5.3.
+Carica/sostituisci nella root tutti i file dello ZIP, poi Commit changes e attendi il deploy Vercel.

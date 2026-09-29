@@ -82,7 +82,15 @@ footer{text-align:center;color:#7a8980;font-size:11px;padding:0 14px 25px}
 .tariff-result{border:1px solid var(--line);border-radius:13px;padding:10px;margin-top:8px;background:#fff}
 .tariff-code{font-size:11px;font-weight:900;color:var(--green)}
 .tariff-desc{font-size:12px;line-height:1.4;margin-top:3px}
+
 .tariff-meta{font-size:11px;color:var(--muted);margin-top:5px}
+.saved-tech{margin-top:10px;padding:12px;border:1px solid var(--line);border-radius:14px;background:#f8fbf9}
+.saved-tech h4{margin:0 0 8px;font-size:14px}
+.saved-tech-scenario{padding:9px 0;border-top:1px solid var(--line)}
+.saved-tech-scenario:first-of-type{border-top:0}
+.saved-tech-context{font-size:11px;color:var(--muted);line-height:1.4;margin-top:5px}
+.saved-tech-source{font-size:11px;overflow-wrap:anywhere;margin-top:6px}
+
 
 
 .assist-box{
@@ -562,7 +570,7 @@ footer{text-align:center;color:#7a8980;font-size:11px;padding:0 14px 25px}
 
 </main>
 
-<footer>Dose Verde · versione 1.5.3 ricerca schede</footer>
+<footer>Dose Verde · versione 1.5.4 scheda persistente</footer>
 
 <script>
 (function(){
@@ -624,6 +632,160 @@ function inferCategory(activity,name){
 function targetLabel(t){
   var m={prato_terreno:'Prato/terreno',arbusto:'Arbusti/piante',albero:'Alberi',siepe:'Siepe',filare:'Filare',vaso:'Vasi',altro:'Altro'};
   return m[t]||'Altro';
+}
+
+function compactTechnicalData(data){
+  if(!data)return null;
+  function cleanCandidate(c){
+    if(!c)return null;
+    return {
+      min:Number(c.min),
+      max:Number(c.max),
+      unit:String(c.unit||''),
+      area:String(c.area||c.basis||''),
+      basis:String(c.basis||c.area||''),
+      label:String(c.label||''),
+      scenario:String(c.scenario||''),
+      context:String(c.context||'').slice(0,600)
+    };
+  }
+  var scenarios=(data.scenarios||[]).slice(0,24).map(function(s){
+    return {
+      scenario:String(s.scenario||''),
+      dose:cleanCandidate(s.dose),
+      water:cleanCandidate(s.water),
+      context:String(s.context||'').slice(0,700)
+    };
+  });
+  return {
+    source:String(data.source||'').slice(0,900),
+    snippet:String(data.snippet||'').slice(0,1800),
+    scenarios:scenarios,
+    doseCandidates:(data.doseCandidates||[]).slice(0,24).map(cleanCandidate).filter(Boolean),
+    waterCandidates:(data.waterCandidates||[]).slice(0,24).map(cleanCandidate).filter(Boolean),
+    savedAt:new Date().toISOString()
+  };
+}
+function parsedDoseValues(c,fallbackTarget){
+  if(!c)return null;
+  var a=Number(c.a!=null?c.a:c.min);
+  var b=Number(c.b!=null?c.b:c.max);
+  if(!Number.isFinite(a) || !Number.isFinite(b))return null;
+  var basis=String(c.area||c.basis||'').toLowerCase();
+  var u=String(c.unit||'').toLowerCase();
+  var unit='';
+  var target=fallbackTarget||'prato_terreno';
+
+  if(basis.indexOf('ha')>=0 || basis.indexOf('ettar')>=0){
+    if(u==='l'||u==='litri')unit='L_ha';
+    else if(u==='kg')unit='kg_ha';
+    else if(u==='ml'){unit='L_ha';a/=1000;b/=1000;}
+    else if(u==='g'){unit='kg_ha';a/=1000;b/=1000;}
+    target='prato_terreno';
+  }else if(/100\s*(?:m2|m²|mq)/.test(basis)){
+    if(u==='ml')unit='ml_100m2';
+    if(u==='g')unit='g_100m2';
+    target='prato_terreno';
+  }else if(/100\s*l/.test(basis)){
+    if(u==='ml')unit='ml_100L';
+    if(u==='g')unit='g_100L';
+  }else if(basis==='l' || basis.indexOf('litro')>=0 || basis.indexOf('acqua')>=0){
+    if(u==='ml')unit='ml_L';
+    if(u==='g')unit='g_L';
+  }else if(/piant|esemplar|alber|arbust|vaso/.test(basis)){
+    if(u==='ml')unit='ml_plant';
+    if(u==='g')unit='g_plant';
+    if(/alber/.test(basis))target='albero';
+    else if(/vaso/.test(basis))target='vaso';
+    else target='arbusto';
+  }else if(/metro|metri|m lineare|lineare|siepe|filare/.test(basis)){
+    if(u==='ml')unit='ml_m';
+    if(u==='g')unit='g_m';
+    if(/filare/.test(basis))target='filare';else target='siepe';
+  }
+  if(!unit)return null;
+  return {unit:unit,min:Number(a.toFixed(4)),max:Number(b.toFixed(4)),target:target};
+}
+function renderSavedTechnicalBox(p){
+  var data=p&&p.technicalData;
+  if(!data)return '';
+  var scenarios=data.scenarios||[];
+  var doses=data.doseCandidates||[];
+  var source=data.source||'Fonte salvata';
+  var html='<div class="saved-tech hidden" data-tech-box="'+esc(p.id)+'">'+
+    '<h4>📋 Specifiche etichetta salvate</h4>'+
+    '<div class="muted">Queste informazioni restano associate al prodotto. Puoi cambiare scenario senza rifare la ricerca.</div>';
+
+  if(source){
+    if(/^https?:\/\//i.test(source)){
+      html+='<div class="saved-tech-source"><b>Fonte:</b> <a href="'+esc(source)+'" target="_blank" rel="noopener">apri etichetta/scheda</a></div>';
+    }else{
+      html+='<div class="saved-tech-source"><b>Fonte:</b> '+esc(source)+'</div>';
+    }
+  }
+
+  if(scenarios.length){
+    html+='<div style="margin-top:9px"><b>Impieghi / scenari rilevati</b></div>';
+    scenarios.forEach(function(s,i){
+      var label=scenarioLabel(s);
+      var current=(p.selectedScenarioIndex===i) || (!Number.isInteger(p.selectedScenarioIndex) && p.scenario && label===p.scenario);
+      html+='<div class="saved-tech-scenario">'+
+        '<div><b>'+esc(label)+'</b>'+(current?' <span class="pill">attivo</span>':'')+'</div>'+
+        (s.dose?'<div style="margin-top:4px"><span class="pill">Dose '+esc(s.dose.label||((s.dose.min||0)+'–'+(s.dose.max||0)+' '+(s.dose.unit||'')+'/'+(s.dose.area||'')))+'</span></div>':'')+
+        (s.water?'<div style="margin-top:4px"><span class="pill">Acqua '+esc(s.water.label||((s.water.min||0)+'–'+(s.water.max||0)+' '+(s.water.unit||'')+'/'+(s.water.area||'')))+'</span></div>':'')+
+        (s.context?'<div class="saved-tech-context">'+esc(s.context.slice(0,320))+'</div>':'')+
+        '<button class="btn small '+(current?'secondary':'primary')+'" style="margin-top:7px" type="button" data-action="choose-tech-scenario" data-id="'+esc(p.id)+'" data-index="'+i+'">'+
+        (current?'Scenario attivo':'Usa questo scenario')+'</button>'+
+        '</div>';
+    });
+  }else if(doses.length){
+    html+='<div style="margin-top:9px"><b>Dosi rilevate</b></div>';
+    doses.forEach(function(d){
+      html+='<div class="saved-tech-scenario"><span class="pill">'+esc(d.label||'Dose rilevata')+'</span>'+
+        (d.context?'<div class="saved-tech-context">'+esc(d.context.slice(0,320))+'</div>':'')+'</div>';
+    });
+  }else{
+    html+='<div class="muted" style="margin-top:8px">Non sono stati salvati scenari strutturati; resta disponibile l’estratto dell’etichetta.</div>';
+  }
+
+  if(data.snippet){
+    html+='<details style="margin-top:9px"><summary><b>Estratto dell’etichetta</b></summary>'+
+      '<div class="saved-tech-context" style="margin-top:7px">'+esc(data.snippet)+'</div></details>';
+  }
+  html+='</div>';
+  return html;
+}
+function chooseSavedTechnicalScenario(id,index){
+  var products=loadProducts();
+  var idx=products.findIndex(function(x){return x.id===id});
+  if(idx<0)return;
+  var p=products[idx];
+  var data=p.technicalData||{};
+  var s=(data.scenarios||[])[Number(index)];
+  if(!s || !s.dose)return;
+
+  var v=parsedDoseValues(s.dose,p.target||'prato_terreno');
+  if(!v){
+    alert('Non riesco a convertire automaticamente questa dose nel formato del calcolatore.');
+    return;
+  }
+
+  p.scenario=s.scenario||scenarioLabel(s);
+  p.unit=v.unit;
+  p.min=v.min;
+  p.max=v.max;
+  p.target=v.target||p.target;
+  p.waterMin=s.water?Number(s.water.min)||0:0;
+  p.waterMax=s.water?Number(s.water.max)||0:0;
+  p.selectedScenarioIndex=Number(index);
+  p.draft=false;
+  products[idx]=p;
+
+  if(saveProducts(products)){
+    renderArchive();
+    renderProductSelect(id);
+    renderQuoteProducts(id);
+  }
 }
 function unitMode(u){
   if(['L_ha','kg_ha','ml_100m2','g_100m2'].indexOf(u)>=0)return 'area';
@@ -845,8 +1007,11 @@ function renderArchive(){
       '<div>'+info+'</div></div></div>'+
       '<div class="actions">'+
       '<button class="btn small secondary" type="button" data-action="edit" data-id="'+esc(p.id)+'">Apri</button>'+
+      (p.technicalData?'<button class="btn small secondary" type="button" data-action="tech" data-id="'+esc(p.id)+'">Scheda etichetta</button>':'')+
       (p.draft?'':'<button class="btn small primary" type="button" data-action="use" data-id="'+esc(p.id)+'">Usa</button>')+
-      '</div></div>';
+      '</div>'+
+      renderSavedTechnicalBox(p)+
+      '</div>';
   }).join('');
 }
 function resetForm(){
@@ -873,6 +1038,8 @@ function resetForm(){
   el('technicalUrl').value='';
   el('technicalFile').value='';
   el('analysisResult').innerHTML='';
+  el('analysisResult')._data=null;
+  el('analysisResult')._selectedScenarioIndex=null;
   el('ocrPanel').classList.add('hidden');
   el('ocrText').textContent='';
   el('ocrStatus').textContent='';
@@ -910,6 +1077,11 @@ function editProduct(id){
   el('formTitle').textContent=p.draft?'Bozza prodotto':'Modifica prodotto';
   el('deleteBtn').classList.remove('hidden');
   showScreen('product');
+  if(p.technicalData){
+    el('analysisResult')._selectedScenarioIndex=Number.isInteger(p.selectedScenarioIndex)?p.selectedScenarioIndex:null;
+    renderAnalysis(p.technicalData);
+    el('technicalStatus').textContent='Specifiche etichetta salvate con questo prodotto.';
+  }
 }
 function saveProduct(){
   var name=el('pName').value.trim();
@@ -927,6 +1099,13 @@ function saveProduct(){
   var hasDose=(minText!=='' && maxText!=='');
   var products=loadProducts();
   var id=el('editId').value || ((hasDose?'p_':'draft_')+Date.now());
+  var existing=products.find(function(x){return x.id===id});
+  var liveTechnical=el('analysisResult')._data||null;
+  var technicalData=compactTechnicalData(liveTechnical || (existing&&existing.technicalData) || null);
+  var selectedScenarioIndex=el('analysisResult')._selectedScenarioIndex;
+  if(!Number.isInteger(selectedScenarioIndex) && existing && Number.isInteger(existing.selectedScenarioIndex)){
+    selectedScenarioIndex=existing.selectedScenarioIndex;
+  }
 
   var obj={
     id:id,
@@ -944,6 +1123,8 @@ function saveProduct(){
     holder:el('pHolder').value.trim(),
     active:el('pActive').value.trim(),
     activity:el('pActivity').value.trim(),
+    technicalData:technicalData,
+    selectedScenarioIndex:Number.isInteger(selectedScenarioIndex)?selectedScenarioIndex:null,
     draft:!hasDose
   };
 
@@ -1062,6 +1243,8 @@ function savePhotoDraft(){
     holder:el('pHolder').value.trim() || (existing&&existing.holder) || '',
     active:el('pActive').value.trim() || (existing&&existing.active) || '',
     activity:el('pActivity').value.trim() || (existing&&existing.activity) || '',
+    technicalData:compactTechnicalData(el('analysisResult')._data || (existing&&existing.technicalData) || null),
+    selectedScenarioIndex:(existing&&Number.isInteger(existing.selectedScenarioIndex))?existing.selectedScenarioIndex:null,
     draft:true
   };
 
@@ -1201,39 +1384,12 @@ function parseOCRText(text){
 }
 function applyParsedDose(c){
   if(!c)return;
-  var basis=(c.area||c.basis||'').toLowerCase();
-  var u=(c.unit||'').toLowerCase();
-
-  if(basis.indexOf('ha')>=0 || basis.indexOf('ettar')>=0){
-    if(u==='l'||u==='litri')el('pUnit').value='L_ha';
-    else if(u==='kg')el('pUnit').value='kg_ha';
-    else if(u==='ml'){el('pUnit').value='L_ha';c.a/=1000;c.b/=1000;}
-    else if(u==='g'){el('pUnit').value='kg_ha';c.a/=1000;c.b/=1000;}
-    el('pTarget').value='prato_terreno';
-  }else if(/100\s*(?:m2|m²|mq)/.test(basis)){
-    if(u==='ml')el('pUnit').value='ml_100m2';
-    if(u==='g')el('pUnit').value='g_100m2';
-    el('pTarget').value='prato_terreno';
-  }else if(/100\s*l/.test(basis)){
-    if(u==='ml')el('pUnit').value='ml_100L';
-    if(u==='g')el('pUnit').value='g_100L';
-  }else if(basis==='l' || basis.indexOf('litro')>=0 || basis.indexOf('acqua')>=0){
-    if(u==='ml')el('pUnit').value='ml_L';
-    if(u==='g')el('pUnit').value='g_L';
-  }else if(/piant|esemplar|alber|arbust|vaso/.test(basis)){
-    if(u==='ml')el('pUnit').value='ml_plant';
-    if(u==='g')el('pUnit').value='g_plant';
-    if(/alber/.test(basis))el('pTarget').value='albero';
-    else if(/vaso/.test(basis))el('pTarget').value='vaso';
-    else el('pTarget').value='arbusto';
-  }else if(/metro|metri|m lineare|lineare|siepe|filare/.test(basis)){
-    if(u==='ml')el('pUnit').value='ml_m';
-    if(u==='g')el('pUnit').value='g_m';
-    if(/filare/.test(basis))el('pTarget').value='filare'; else el('pTarget').value='siepe';
-  }
-
-  el('pMin').value=Number(c.a.toFixed(4));
-  el('pMax').value=Number(c.b.toFixed(4));
+  var v=parsedDoseValues(c,el('pTarget').value||'prato_terreno');
+  if(!v)return;
+  el('pUnit').value=v.unit;
+  el('pTarget').value=v.target;
+  el('pMin').value=v.min;
+  el('pMax').value=v.max;
 }
 
 async function runOCR(){
@@ -1333,6 +1489,7 @@ async function analyzeUrl(url,autoMode){
   try{
     var data=await apiJson('/api/analyze?'+new URLSearchParams({url:url}).toString());
     el('technicalStatus').textContent='Fonte analizzata. Verifica sempre i dati proposti.';
+    el('analysisResult')._selectedScenarioIndex=null;
     renderAnalysis(data);
     autoApplyAnalysis(data);
   }catch(e){
@@ -1457,6 +1614,7 @@ async function analyzeLocalPdf(){
     if(!text || text.trim().length<30)throw new Error('Il PDF non contiene testo leggibile. Potrebbe essere una scansione; in quel caso usa una foto e OCR.');
     var data=analyzeLocalText(text);
     el('technicalStatus').textContent='PDF letto localmente. Verifica i dati proposti.';
+    el('analysisResult')._selectedScenarioIndex=null;
     renderAnalysis(data);
     autoApplyAnalysis(data);
   }catch(e){
@@ -1482,8 +1640,9 @@ function renderAnalysis(data){
       var label=esc(scenarioLabel(s));
       var dose=s.dose?(' · '+esc(s.dose.label)):'';
       var water=s.water?(' · acqua '+esc(s.water.label)):'';
-      html+='<button class="btn small secondary" style="margin:5px 5px 0 0" type="button" data-scenario-candidate="'+i+'">'+
-        label+dose+water+'</button>';
+      var active=(el('analysisResult')._selectedScenarioIndex===i);
+      html+='<button class="btn small '+(active?'primary':'secondary')+'" style="margin:5px 5px 0 0" type="button" data-scenario-candidate="'+i+'">'+
+        label+dose+water+(active?' · attivo':'')+'</button>';
     });
   }else if(scenarios.length===1){
     var s=scenarios[0];
@@ -1526,8 +1685,13 @@ function applyScenarioCandidate(index){
   if(s.water){
     el('wMin').value=s.water.min;
     el('wMax').value=s.water.max;
+  }else{
+    el('wMin').value='';
+    el('wMax').value='';
   }
-  el('technicalStatus').textContent='Scenario applicato automaticamente ai campi. Controlla e poi salva.';
+  el('analysisResult')._selectedScenarioIndex=Number(index);
+  renderAnalysis(data);
+  el('technicalStatus').textContent='Scenario applicato ai campi. Salva il prodotto per conservarlo come scenario attivo.';
 }
 function autoApplyAnalysis(data){
   var scenarios=data.scenarios||[];
@@ -1810,15 +1974,26 @@ function wire(){
     var b=e.target.closest('button[data-action]');
     if(!b)return;
     var id=b.getAttribute('data-id');
-    if(b.getAttribute('data-action')==='edit')editProduct(id);
-    if(b.getAttribute('data-action')==='use'){
+    var action=b.getAttribute('data-action');
+    if(action==='edit')editProduct(id);
+    if(action==='tech'){
+      var boxes=el('archiveList').querySelectorAll('[data-tech-box]');
+      Array.prototype.forEach.call(boxes,function(box){
+        if(box.getAttribute('data-tech-box')===id)box.classList.toggle('hidden');
+      });
+    }
+    if(action==='choose-tech-scenario'){
+      var index=Number(b.getAttribute('data-index'));
+      chooseSavedTechnicalScenario(id,index);
+    }
+    if(action==='use'){
       renderProductSelect(id);
       showScreen('calc');
     }
   });
 }
 function refreshConnectionStatus(){
-  var base='Pronta · versione 1.5.3 ricerca schede';
+  var base='Pronta · versione 1.5.4 scheda persistente';
   if(navigator.onLine){
     el('status').textContent=base+' · online';
   }else{
