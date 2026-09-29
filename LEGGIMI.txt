@@ -1,49 +1,27 @@
-DOSE VERDE 1.5.4 — SCHEDA TECNICA PERSISTENTE E SCENARI RIUTILIZZABILI
+DOSE VERDE 1.5.5 — FERTILIZZANTI + SALVATAGGIO SCHEDA PIÙ ROBUSTO
 
-NOVITÀ PRINCIPALE
-Quando Dose Verde analizza una scheda/etichetta, non salva più soltanto la dose scelta.
-Con il prodotto vengono conservati anche:
-- fonte della scheda/etichetta;
-- estratto tecnico;
-- scenari/impieghi individuati;
-- dose minima/massima per ogni scenario;
-- volume d'acqua associato quando rilevato;
-- contesto testuale utile dell'etichetta.
+NUOVA UNITÀ
+- g/m²
 
-ARCHIVIO
-Per i prodotti che possiedono dati tecnici salvati compare il pulsante:
-“Scheda etichetta”
+Esempio: 30 g/m² × 150 m² = 4.500 g = 4,5 kg di fertilizzante.
 
-Il box resta disponibile anche dopo aver chiuso e riaperto l'app.
-Mostra tutti gli scenari rilevati e indica quale è quello attivo.
+L'unità è disponibile nel prodotto, nel calcolatore, nel preventivo e viene riconosciuta
+anche dalla lettura automatica di PDF/schede quando compare come g/m², g/m2 o g/mq.
 
-CAMBIO SCENARIO
-Nel box dell'Archivio puoi premere:
-“Usa questo scenario”
+SCHEDA TECNICA
+- stato tecnico separato dal box grafico, così non viene perso durante aggiornamenti dell'interfaccia;
+- seconda copia di sicurezza locale della scheda;
+- recupero automatico dal backup se manca dal record principale;
+- verifica immediata dopo il salvataggio;
+- una nuova analisi fallita non cancella più dal box una scheda già acquisita;
+- il backup viene eliminato insieme al prodotto.
 
-Dose Verde aggiorna immediatamente:
-- scenario/impiego attivo;
-- unità di dose;
-- dose minima e massima;
-- volume d'acqua;
-- tipo di bersaglio quando ricavabile dall'unità.
-
-Non serve rifare la ricerca o rileggere il PDF.
-
-MODIFICA PRODOTTO
-Quando riapri un prodotto, il box “Dati tecnici trovati” viene ripristinato automaticamente.
-Puoi quindi scegliere un altro scenario e salvare.
-
-COMPATIBILITÀ
-I prodotti già salvati con versioni precedenti continuano a funzionare, ma non possono avere retroattivamente
-la scheda tecnica se questa non era stata conservata. Per quei prodotti:
-1. Apri il prodotto;
-2. analizza nuovamente la scheda/PDF;
-3. salva una volta.
-Da quel momento la scheda rimane associata al prodotto.
+SPAZIO LOCALE
+Le nuove foto vengono compresse maggiormente (max 720 px, JPEG 60%).
+Se lo spazio locale è insufficiente, Dose Verde avvisa esplicitamente e non considera riuscito il salvataggio.
 
 PWA
-Cache aggiornata a v1.5.4. Dopo il deploy apri una volta l'app online per aggiornare la PWA installata.
+Cache aggiornata alla v1.5.5. Dopo il deploy apri una volta l'app online.
 
 AGGIORNAMENTO
-Carica/sostituisci nella root tutti i file dello ZIP, poi Commit changes e attendi il deploy Vercel.
+Carica/sostituisci nella root tutti i file dello ZIP, poi Commit changes e attendi Vercel.

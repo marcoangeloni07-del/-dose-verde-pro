@@ -366,6 +366,7 @@ footer{text-align:center;color:#7a8980;font-size:11px;padding:0 14px 25px}
           <option value="kg_ha">kg/ha</option>
           <option value="ml_100m2">ml/100 m²</option>
           <option value="g_100m2">g/100 m²</option>
+          <option value="g_m2">g/m²</option>
           <option value="ml_L">ml/L acqua</option>
           <option value="g_L">g/L acqua</option>
           <option value="ml_100L">ml/100 L acqua</option>
@@ -570,7 +571,7 @@ footer{text-align:center;color:#7a8980;font-size:11px;padding:0 14px 25px}
 
 </main>
 
-<footer>Dose Verde · versione 1.5.4 scheda persistente</footer>
+<footer>Dose Verde · versione 1.5.5 fertilizzanti</footer>
 
 <script>
 (function(){
@@ -579,6 +580,9 @@ footer{text-align:center;color:#7a8980;font-size:11px;padding:0 14px 25px}
 var KEY='dose_verde_stable_v1';
 var currentPhoto='';
 var selectedTariff=null;
+var currentTechnicalData=null;
+var currentTechnicalScenarioIndex=null;
+var TECH_KEY='dose_verde_technical_backup_v1';
 
 var defaultProducts=[
   {
@@ -607,7 +611,7 @@ function fmt(n,d){
 function unitLabel(u){
   var m={
     L_ha:'L/ha',kg_ha:'kg/ha',
-    ml_100m2:'ml/100 m²',g_100m2:'g/100 m²',
+    ml_100m2:'ml/100 m²',g_100m2:'g/100 m²',g_m2:'g/m²',
     ml_L:'ml/L acqua',g_L:'g/L acqua',
     ml_100L:'ml/100 L acqua',g_100L:'g/100 L acqua',
     ml_plant:'ml/pianta',g_plant:'g/pianta',
@@ -685,6 +689,9 @@ function parsedDoseValues(c,fallbackTarget){
   }else if(/100\s*(?:m2|m²|mq)/.test(basis)){
     if(u==='ml')unit='ml_100m2';
     if(u==='g')unit='g_100m2';
+    target='prato_terreno';
+  }else if(/^(?:m2|m²|mq|metro quadrato|metri quadrati)$/.test(basis)){
+    if(u==='g')unit='g_m2';
     target='prato_terreno';
   }else if(/100\s*l/.test(basis)){
     if(u==='ml')unit='ml_100L';
@@ -788,12 +795,38 @@ function chooseSavedTechnicalScenario(id,index){
   }
 }
 function unitMode(u){
-  if(['L_ha','kg_ha','ml_100m2','g_100m2'].indexOf(u)>=0)return 'area';
+  if(['L_ha','kg_ha','ml_100m2','g_100m2','g_m2'].indexOf(u)>=0)return 'area';
   if(['ml_L','g_L','ml_100L','g_100L'].indexOf(u)>=0)return 'water';
   if(['ml_plant','g_plant'].indexOf(u)>=0)return 'plant';
   if(['ml_m','g_m'].indexOf(u)>=0)return 'length';
   return 'area';
 }
+
+function loadTechnicalBackups(){
+  try{
+    var raw=localStorage.getItem(TECH_KEY);
+    var obj=raw?JSON.parse(raw):{};
+    return obj && typeof obj==='object' ? obj : {};
+  }catch(e){return {}}
+}
+function saveTechnicalBackup(id,data){
+  if(!id || !data)return;
+  try{
+    var all=loadTechnicalBackups();
+    all[id]=compactTechnicalData(data);
+    localStorage.setItem(TECH_KEY,JSON.stringify(all));
+  }catch(e){}
+}
+function deleteTechnicalBackup(id){
+  try{
+    var all=loadTechnicalBackups();
+    if(Object.prototype.hasOwnProperty.call(all,id)){
+      delete all[id];
+      localStorage.setItem(TECH_KEY,JSON.stringify(all));
+    }
+  }catch(e){}
+}
+
 function loadProducts(){
   try{
     var raw=localStorage.getItem(KEY);
@@ -802,7 +835,12 @@ function loadProducts(){
       return defaultProducts.slice();
     }
     var arr=JSON.parse(raw);
-    return Array.isArray(arr)?arr:defaultProducts.slice();
+    if(!Array.isArray(arr))return defaultProducts.slice();
+    var backups=loadTechnicalBackups();
+    arr.forEach(function(p){
+      if(!p.technicalData && backups[p.id])p.technicalData=backups[p.id];
+    });
+    return arr;
   }catch(e){
     return defaultProducts.slice();
   }
@@ -813,7 +851,7 @@ function saveProducts(arr){
     return true;
   }catch(e){
     if(e && (e.name==='QuotaExceededError' || e.code===22)){
-      alert('Lo spazio del browser è quasi pieno. La foto potrebbe essere troppo grande o ci sono molte immagini salvate.');
+      alert('Spazio locale quasi pieno: il salvataggio non è stato completato. Le foto delle etichette occupano molto più spazio delle schede tecniche. Rimuovi qualche foto non necessaria e riprova: Dose Verde non cancella automaticamente i dati.');
       return false;
     }
     throw e;
@@ -885,6 +923,7 @@ function amountFor(p,dose,ctx){
   if(p.unit==='kg_ha')return {value:dose*(areaM2/10000)*1000,unit:'g'};
   if(p.unit==='ml_100m2')return {value:dose*(areaM2/100),unit:'ml'};
   if(p.unit==='g_100m2')return {value:dose*(areaM2/100),unit:'g'};
+  if(p.unit==='g_m2')return {value:dose*areaM2,unit:'g'};
   if(p.unit==='ml_L')return {value:dose*waterL,unit:'ml'};
   if(p.unit==='g_L')return {value:dose*waterL,unit:'g'};
   if(p.unit==='ml_100L')return {value:dose*(waterL/100),unit:'ml'};
@@ -1040,6 +1079,8 @@ function resetForm(){
   el('analysisResult').innerHTML='';
   el('analysisResult')._data=null;
   el('analysisResult')._selectedScenarioIndex=null;
+  currentTechnicalData=null;
+  currentTechnicalScenarioIndex=null;
   el('ocrPanel').classList.add('hidden');
   el('ocrText').textContent='';
   el('ocrStatus').textContent='';
@@ -1078,7 +1119,9 @@ function editProduct(id){
   el('deleteBtn').classList.remove('hidden');
   showScreen('product');
   if(p.technicalData){
-    el('analysisResult')._selectedScenarioIndex=Number.isInteger(p.selectedScenarioIndex)?p.selectedScenarioIndex:null;
+    currentTechnicalData=p.technicalData;
+    currentTechnicalScenarioIndex=Number.isInteger(p.selectedScenarioIndex)?p.selectedScenarioIndex:null;
+    el('analysisResult')._selectedScenarioIndex=currentTechnicalScenarioIndex;
     renderAnalysis(p.technicalData);
     el('technicalStatus').textContent='Specifiche etichetta salvate con questo prodotto.';
   }
@@ -1100,9 +1143,9 @@ function saveProduct(){
   var products=loadProducts();
   var id=el('editId').value || ((hasDose?'p_':'draft_')+Date.now());
   var existing=products.find(function(x){return x.id===id});
-  var liveTechnical=el('analysisResult')._data||null;
+  var liveTechnical=currentTechnicalData || el('analysisResult')._data || null;
   var technicalData=compactTechnicalData(liveTechnical || (existing&&existing.technicalData) || null);
-  var selectedScenarioIndex=el('analysisResult')._selectedScenarioIndex;
+  var selectedScenarioIndex=Number.isInteger(currentTechnicalScenarioIndex)?currentTechnicalScenarioIndex:el('analysisResult')._selectedScenarioIndex;
   if(!Number.isInteger(selectedScenarioIndex) && existing && Number.isInteger(existing.selectedScenarioIndex)){
     selectedScenarioIndex=existing.selectedScenarioIndex;
   }
@@ -1131,6 +1174,13 @@ function saveProduct(){
   var idx=products.findIndex(function(x){return x.id===id});
   if(idx>=0)products[idx]=obj;else products.push(obj);
   if(!saveProducts(products)) return;
+  if(technicalData)saveTechnicalBackup(id,technicalData);
+
+  var verify=loadProducts().find(function(x){return x.id===id});
+  if(technicalData && (!verify || !verify.technicalData)){
+    alert('Il prodotto è stato salvato, ma la scheda tecnica non risulta rileggibile. Riapri il prodotto e ripeti il salvataggio.');
+    return;
+  }
 
   if(!hasDose){
     alert('Prodotto salvato come bozza perché la dose non è ancora disponibile. Potrai completarlo in seguito dall’Archivio.');
@@ -1146,7 +1196,8 @@ function deleteProduct(){
   if(!confirm('Eliminare questo prodotto?'))return;
 
   var products=loadProducts().filter(function(p){return p.id!==id});
-  saveProducts(products);
+  if(!saveProducts(products))return;
+  deleteTechnicalBackup(id);
   resetForm();
   renderProductSelect();
   showScreen('archive');
@@ -1177,14 +1228,14 @@ function resizePhoto(file){
       var img=new Image();
       img.onerror=function(){reject(new Error('image'))};
       img.onload=function(){
-        var maxSide=900;
+        var maxSide=720;
         var scale=Math.min(1,maxSide/Math.max(img.width,img.height));
         var canvas=document.createElement('canvas');
         canvas.width=Math.max(1,Math.round(img.width*scale));
         canvas.height=Math.max(1,Math.round(img.height*scale));
         var ctx=canvas.getContext('2d');
         ctx.drawImage(img,0,0,canvas.width,canvas.height);
-        resolve(canvas.toDataURL('image/jpeg',0.68));
+        resolve(canvas.toDataURL('image/jpeg',0.60));
       };
       img.src=reader.result;
     };
@@ -1243,14 +1294,16 @@ function savePhotoDraft(){
     holder:el('pHolder').value.trim() || (existing&&existing.holder) || '',
     active:el('pActive').value.trim() || (existing&&existing.active) || '',
     activity:el('pActivity').value.trim() || (existing&&existing.activity) || '',
-    technicalData:compactTechnicalData(el('analysisResult')._data || (existing&&existing.technicalData) || null),
-    selectedScenarioIndex:(existing&&Number.isInteger(existing.selectedScenarioIndex))?existing.selectedScenarioIndex:null,
+    technicalData:compactTechnicalData(currentTechnicalData || el('analysisResult')._data || (existing&&existing.technicalData) || null),
+    selectedScenarioIndex:Number.isInteger(currentTechnicalScenarioIndex)?currentTechnicalScenarioIndex:
+      ((existing&&Number.isInteger(existing.selectedScenarioIndex))?existing.selectedScenarioIndex:null),
     draft:true
   };
 
   var idx=products.findIndex(function(x){return x.id===id});
   if(idx>=0) products[idx]=obj; else products.push(obj);
   if(!saveProducts(products)) return;
+  if(obj.technicalData)saveTechnicalBackup(id,obj.technicalData);
 
   el('editId').value=id;
   el('pName').value=obj.name;
@@ -1485,11 +1538,12 @@ async function analyzeUrl(url,autoMode){
   if(!url){alert('Inserisci o seleziona un URL.');return}
   el('technicalUrl').value=url;
   setBusy('technicalStatus','Analisi della fonte online…');
-  el('analysisResult').innerHTML='';
   try{
     var data=await apiJson('/api/analyze?'+new URLSearchParams({url:url}).toString());
     el('technicalStatus').textContent='Fonte analizzata. Verifica sempre i dati proposti.';
     el('analysisResult')._selectedScenarioIndex=null;
+    currentTechnicalScenarioIndex=null;
+    currentTechnicalData=data;
     renderAnalysis(data);
     autoApplyAnalysis(data);
   }catch(e){
@@ -1554,7 +1608,7 @@ function analyzeLocalText(text){
     if(!arr.some(function(x){return [x.min,x.max,x.unit,x.area,x.scenario].join('|')===key}))arr.push(item);
   }
 
-  var re=/(\d+(?:[.,]\d+)?)\s*(?:(?:-|–|—|÷|\ba\b|\bfino\s+a\b)\s*(\d+(?:[.,]\d+)?))?\s*(ml|l|litri|kg|g)\s*(?:\/|per)\s*(ha|ettaro|ettari|100\s*(?:m²|m2|mq)|100\s*l(?:itri)?|l(?:itro|itri)?\s*(?:d['’]acqua|acqua)?|pianta|piante|esemplare|esemplari|albero|alberi|arbusto|arbusti|vaso|vasi|m(?:etro|etri)?\s*(?:lineare|lineari)?)/gi;
+  var re=/(\d+(?:[.,]\d+)?)\s*(?:(?:-|–|—|÷|\ba\b|\bfino\s+a\b)\s*(\d+(?:[.,]\d+)?))?\s*(ml|l|litri|kg|g)\s*(?:\/|per)\s*(ha|ettaro|ettari|100\s*(?:m²|m2|mq)|m²|m2|mq|metro\s+quadrato|metri\s+quadrati|100\s*l(?:itri)?|l(?:itro|itri)?\s*(?:d['’]acqua|acqua)?|pianta|piante|esemplare|esemplari|albero|alberi|arbusto|arbusti|vaso|vasi|m(?:etro|etri)?\s*(?:lineare|lineari)?)/gi;
   var m;
   while((m=re.exec(compact))!==null){
     var min=Number(m[1].replace(',','.'));
@@ -1607,7 +1661,6 @@ function analyzeLocalText(text){
 async function analyzeLocalPdf(){
   var file=el('technicalFile').files[0];
   if(!file){alert('Scegli prima un file PDF.');return}
-  el('analysisResult').innerHTML='';
   setBusy('technicalStatus','Lettura del PDF sul dispositivo…');
   try{
     var text=await extractPdfText(file);
@@ -1615,6 +1668,8 @@ async function analyzeLocalPdf(){
     var data=analyzeLocalText(text);
     el('technicalStatus').textContent='PDF letto localmente. Verifica i dati proposti.';
     el('analysisResult')._selectedScenarioIndex=null;
+    currentTechnicalScenarioIndex=null;
+    currentTechnicalData=data;
     renderAnalysis(data);
     autoApplyAnalysis(data);
   }catch(e){
@@ -1675,6 +1730,7 @@ function renderAnalysis(data){
 
   el('analysisResult').innerHTML=html;
   el('analysisResult')._data=data;
+  currentTechnicalData=data;
 }
 function applyScenarioCandidate(index){
   var data=el('analysisResult')._data||{};
@@ -1690,6 +1746,7 @@ function applyScenarioCandidate(index){
     el('wMax').value='';
   }
   el('analysisResult')._selectedScenarioIndex=Number(index);
+  currentTechnicalScenarioIndex=Number(index);
   renderAnalysis(data);
   el('technicalStatus').textContent='Scenario applicato ai campi. Salva il prodotto per conservarlo come scenario attivo.';
 }
@@ -1993,7 +2050,7 @@ function wire(){
   });
 }
 function refreshConnectionStatus(){
-  var base='Pronta · versione 1.5.4 scheda persistente';
+  var base='Pronta · versione 1.5.5 fertilizzanti';
   if(navigator.onLine){
     el('status').textContent=base+' · online';
   }else{

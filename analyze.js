@@ -105,7 +105,7 @@ function findCandidates(text){
   }
 
   // Area, water, plant and linear-meter bases.
-  const re=/(\d+(?:[.,]\d+)?)\s*(?:(?:-|–|—|÷|\ba\b|\bfino\s+a\b)\s*(\d+(?:[.,]\d+)?))?\s*(ml|l|litri|kg|g)\s*(?:\/|per)\s*(ha|ettaro|ettari|100\s*(?:m²|m2|mq)|100\s*l(?:itri)?|l(?:itro|itri)?\s*(?:d['’]acqua|acqua)?|pianta|piante|esemplare|esemplari|albero|alberi|arbusto|arbusti|vaso|vasi|m(?:etro|etri)?\s*(?:lineare|lineari)?)/gi;
+  const re=/(\d+(?:[.,]\d+)?)\s*(?:(?:-|–|—|÷|\ba\b|\bfino\s+a\b)\s*(\d+(?:[.,]\d+)?))?\s*(ml|l|litri|kg|g)\s*(?:\/|per)\s*(ha|ettaro|ettari|100\s*(?:m²|m2|mq)|m²|m2|mq|metro\s+quadrato|metri\s+quadrati|100\s*l(?:itri)?|l(?:itro|itri)?\s*(?:d['’]acqua|acqua)?|pianta|piante|esemplare|esemplari|albero|alberi|arbusto|arbusti|vaso|vasi|m(?:etro|etri)?\s*(?:lineare|lineari)?)/gi;
 
   let m;
   while((m=re.exec(compact))!==null){
@@ -174,7 +174,7 @@ module.exports=async function(req,res){
     const r=await fetch(u.toString(),{
       redirect:'follow',
       signal:controller.signal,
-      headers:{'user-agent':'Mozilla/5.0 DoseVerde/1.5'}
+      headers:{'user-agent':'Mozilla/5.0 DoseVerde/1.5.5'}
     });
     clearTimeout(timer);
 
