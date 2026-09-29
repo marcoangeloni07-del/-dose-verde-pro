@@ -1,0 +1,21 @@
+DOSE VERDE PRO 1.6 — RAPPORTO TEST LOOP ENGINEERING
+
+TEST ESEGUITI
+- sintassi JavaScript: index.html (entrambi gli script), analyze.js, find-technical.js, search.js, tariffe.js, sw.js: PASS
+- JSON: manifest.webmanifest, vercel.json, package.json: PASS
+- audit DOM: 100 riferimenti el('id') verificati, nessun ID mancante o duplicato: PASS
+- UI headless Chromium: creazione/salvataggio prodotto, analisi tecnica mock, scenari multipli, riapertura dopo nuova sessione, recupero da backup, cambio scenario, calcolo, preventivo, errore di rete, foto da file, PDF metadata: PASS
+- console/page errors nel test UI: nessun errore o warning: PASS
+- conversioni: g/m², kg/100 m², kg/1000 m², kg/ha, ml/L, ml/10 L, L/ha: PASS
+- OCR parser sintetico per g/m² e ml/10 L: PASS
+- estrazione tecnica sintetica: colture, bersagli, massimo trattamenti, intervalli, limitazioni/avvertenze: PASS
+- filtro ricerca: fonte produttore premiata, risultato city-data/forum escluso, corrispondenza istituzionale esatta ad alta affidabilità: PASS
+- PWA static audit: manifest standalone, icone, shell cache, service worker e file Vercel presenti: PASS
+
+LIMITI DI VERIFICA DELL'AMBIENTE
+- il browser disponibile nel container blocca per policy amministrativa la navigazione verso localhost, quindi il service worker non è stato installato end-to-end in una vera origine HTTP durante il test; manifest, service worker e routing sono stati verificati staticamente;
+- l'installazione npm locale delle dipendenze server (pdf-parse, adm-zip, iconv-lite) non è terminata entro il timeout di rete del container. Le funzioni modificate sono state controllate sintatticamente e le loro parti pure sono state testate; Vercel installerà le dipendenze da package.json al deploy;
+- il menu nativo Foto/Fotocamera/File di Safari iOS/iPadOS non può essere simulato fedelmente in Chromium. Sono stati verificati gli attributi HTML corretti: capture solo sull'input fotocamera e nessun capture sull'input Foto/File.
+
+ESITO
+Nessuna regressione evidente rilevata nei test disponibili. Per chiudere anche le verifiche dipendenti dall'ambiente esterno, dopo il deploy è consigliato un rapido smoke test reale su iPhone/iPad: installazione PWA, riapertura offline, selettore Foto/File e apertura di un PDF salvato.

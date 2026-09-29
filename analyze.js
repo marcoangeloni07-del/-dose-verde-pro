@@ -51,6 +51,50 @@ function stripHtml(s){
 function n(v){return Number(String(v).replace(',','.'))}
 function cleanContext(s){return String(s||'').replace(/\s+/g,' ').trim()}
 
+function splitSentences(text){
+  return cleanContext(text).split(/(?<=[.!?;])\s+|\s+(?=(?:ATTENZIONE|AVVERTENZE|IMPIEGHI|MODALITÀ|DOSI|COLTURE|INTERVALLO)\b)/i)
+    .map(cleanContext).filter(x=>x.length>=15 && x.length<=700);
+}
+function uniqStrings(arr,limit=12){
+  const seen=new Set(),out=[];
+  for(const x0 of arr){
+    const x=cleanContext(x0);
+    const k=x.toLowerCase();
+    if(!x || seen.has(k))continue;
+    seen.add(k);out.push(x);
+    if(out.length>=limit)break;
+  }
+  return out;
+}
+function extractLabelDetails(text){
+  const sentences=splitSentences(text);
+  const pick=(re,n=10)=>uniqStrings(sentences.filter(x=>re.test(x)),n);
+  const crops=pick(/\b(coltur\w*|vite|melo|pero|pesco|albicocc\w*|susino|cilieg\w*|agrum\w*|olivo|pomodor\w*|melanz\w*|peperon\w*|patat\w*|lattug\w*|cavol\w*|ortic\w*|fruttif\w*|cereal\w*|mais|riso|soia|girasol\w*|prat\w*|tappet\w*|ornamental\w*|arbust\w*|alber\w*|floricol\w*|viva\w*|siepi?)\b/i,16);
+  const targets=pick(/\b(contro|bersagli?\w*|afid\w*|aleurod\w*|tripid\w*|coccinigl\w*|acar\w*|insett\w*|larv\w*|minator\w*|oidio|peronospor\w*|ticchiol\w*|ruggin\w*|fung\w*|infestant\w*|malerb\w*|patogen\w*|nematod\w*|lumach\w*|limacc\w*)\b/i,16);
+  const purposes=pick(/\b(per il controllo|per la lotta|per contenere|per prevenire|azione|funzione|finalit\w*|impieg\w*|trattament\w*)\b/i,12);
+  const maxTreatments=pick(/\b(numero massimo|max(?:\.|imo)?\s*(?:di)?\s*\d*\s*tratt\w*|non più di\s*\d+\s*tratt\w*|massimo\s*\d+\s*(?:applic\w*|tratt\w*))\b/i,8);
+  const intervals=pick(/\b(intervallo|intervalli|giorni\s+tra|ogni\s+\d+\s+giorni|ripetere\s+dopo|cadenza)\b/i,8);
+  const limitations=pick(/\b(non applicare|non trattare|non usare|non impiegare|evitare|limitaz|restrizion|carenza|tempo di carenza|prima della raccolta)\b/i,12);
+  const warnings=pick(/\b(avvertenz\w*|attenzione|pericolo|dpi|protezion\w*|api\b|alvear\w*|acque superficiali|deriva|vento|pioggia|temperatur\w*|fitotoss\w*)\b/i,12);
+  const summaryCandidates=uniqStrings([
+    ...pick(/\b(impieg\w*|modalit\w*|dose|dosi|dosaggio|trattament\w*|applic\w*)\b/i,6),
+    ...crops.slice(0,2),...targets.slice(0,2)
+  ],8);
+  return {
+    summary:summaryCandidates.join(' ').slice(0,1800),
+    crops,targets,purposes,maxTreatments,intervals,limitations,warnings
+  };
+}
+function scenarioMeta(context,scenario){
+  const d=extractLabelDetails(context);
+  return {
+    crop:d.crops[0]||scenario||'',
+    target:d.targets[0]||'',
+    purpose:d.purposes[0]||'',
+    details:d
+  };
+}
+
 function detectScenario(context){
   const lc=context.toLowerCase();
 
@@ -105,7 +149,7 @@ function findCandidates(text){
   }
 
   // Area, water, plant and linear-meter bases.
-  const re=/(\d+(?:[.,]\d+)?)\s*(?:(?:-|–|—|÷|\ba\b|\bfino\s+a\b)\s*(\d+(?:[.,]\d+)?))?\s*(ml|l|litri|kg|g)\s*(?:\/|per)\s*(ha|ettaro|ettari|100\s*(?:m²|m2|mq)|m²|m2|mq|metro\s+quadrato|metri\s+quadrati|100\s*l(?:itri)?|l(?:itro|itri)?\s*(?:d['’]acqua|acqua)?|pianta|piante|esemplare|esemplari|albero|alberi|arbusto|arbusti|vaso|vasi|m(?:etro|etri)?\s*(?:lineare|lineari)?)/gi;
+  const re=/(\d+(?:[.,]\d+)?)\s*(?:(?:-|–|—|÷|\ba\b|\bfino\s+a\b)\s*(\d+(?:[.,]\d+)?))?\s*(ml|l|litri|kg|g)\s*(?:\/|per)\s*(ha|ettaro|ettari|1000\s*(?:m²|m2|mq)|100\s*(?:m²|m2|mq)|m²|m2|mq|metro\s+quadrato|metri\s+quadrati|100\s*l(?:itri)?|10\s*l(?:itri)?|l(?:itro|itri)?\s*(?:d['’]acqua|acqua)?|pianta|piante|esemplare|esemplari|albero|alberi|arbusto|arbusti|vaso|vasi|m(?:etro|etri)?\s*(?:lineare|lineari)?)/gi;
 
   let m;
   while((m=re.exec(compact))!==null){
@@ -143,8 +187,10 @@ function pairScenarios(doses,waters){
     let scenario=d.scenario || (best&&best.scenario) || '';
     if(!scenario && doses.length===1) scenario='Impiego rilevato';
 
+    const meta=scenarioMeta(d.context,scenario);
     scenarios.push({
       scenario,
+      crop:meta.crop,target:meta.target,purpose:meta.purpose,details:meta.details,
       dose:d,
       water:best,
       context:d.context
@@ -174,7 +220,7 @@ module.exports=async function(req,res){
     const r=await fetch(u.toString(),{
       redirect:'follow',
       signal:controller.signal,
-      headers:{'user-agent':'Mozilla/5.0 DoseVerde/1.5.5'}
+      headers:{'user-agent':'Mozilla/5.0 DoseVerde/1.6'}
     });
     clearTimeout(timer);
 
@@ -204,12 +250,15 @@ module.exports=async function(req,res){
     const start=key>=0?Math.max(0,key-260):0;
     const snippet=cleanContext(text.slice(start,start+1200));
 
+    const details=extractLabelDetails(text);
     return res.status(200).json({
       source:u.toString(),
+      sourceTitle:u.hostname,
+      details,
       doseCandidates:found.dose.map(({pos,...x})=>x),
       waterCandidates:found.water.map(({pos,...x})=>x),
       scenarios:scenarios.map(s=>({
-        scenario:s.scenario,
+        scenario:s.scenario,crop:s.crop,target:s.target,purpose:s.purpose,details:s.details,
         dose:s.dose?Object.fromEntries(Object.entries(s.dose).filter(([k])=>k!=='pos')):null,
         water:s.water?Object.fromEntries(Object.entries(s.water).filter(([k])=>k!=='pos')):null,
         context:s.context
@@ -222,3 +271,5 @@ module.exports=async function(req,res){
     });
   }
 };
+
+module.exports._test={findCandidates,pairScenarios,extractLabelDetails,detectScenario};

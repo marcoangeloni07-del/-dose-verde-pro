@@ -1,27 +1,85 @@
-DOSE VERDE 1.5.5 — FERTILIZZANTI + SALVATAGGIO SCHEDA PIÙ ROBUSTO
+DOSE VERDE PRO 1.6 — LOOP ENGINEERING
 
-NUOVA UNITÀ
+Questa versione nasce da un ciclo completo ANALISI → MODIFICA → TEST → CORREZIONE → RITEST.
+Mantiene l'interfaccia generale della 1.5.x e conserva compatibilità con i prodotti già presenti in localStorage.
+
+MIGLIORIE PRINCIPALI
+
+1. PERSISTENZA PRODOTTO E SCHEDA TECNICA
+- nome, categoria, scenario, registrazione, titolare, sostanze attive, attività/formulazione e note vengono conservati;
+- la scheda tecnica mantiene fonte, sintesi, scenari, dosi, acqua e dettagli estratti;
+- viene conservato un backup separato della scheda tecnica per recuperarla se manca dal record principale;
+- le foto restano associate al prodotto;
+- i PDF caricati dal dispositivo vengono salvati in IndexedDB e possono essere riaperti dall'Archivio;
+- il salvataggio del PDF è atomico: un errore nel record principale non sovrascrive il PDF precedente.
+
+2. BOX TECNICO PERMANENTE
+Il pulsante “Scheda / allegati” nell'Archivio mostra, quando disponibili:
+- fonte;
+- sintesi;
+- colture/piante;
+- bersagli/finalità;
+- dosi e volumi d'acqua;
+- numero massimo di trattamenti;
+- intervalli;
+- limitazioni;
+- avvertenze;
+- note;
+- PDF salvato sul dispositivo.
+
+3. SCENARI MULTIPLI
+Gli scenari estratti restano memorizzati. “Usa questo scenario” aggiorna dose minima/massima,
+unità, volume d'acqua e bersaglio. Il calcolatore viene invalidato e il preventivo viene ricalcolato
+se era già aperto.
+
+4. FERTILIZZANTI
+Unità supportate e verificate:
 - g/m²
+- kg/100 m²
+- kg/1000 m²
+- kg/ha
+- ml/L
+- ml/10 L
+- L/ha
+Sono supportate anche le precedenti unità. Per Concime/Biostimolante il calcolo segue l'unità dichiarata,
+senza conversioni fitosanitarie implicite.
 
-Esempio: 30 g/m² × 150 m² = 4.500 g = 4,5 kg di fertilizzante.
+5. FOTO / FILE SU IPHONE-IPAD
+- “Scatta foto” usa capture=environment;
+- “Foto / File” non usa capture e lascia a Safari/iOS la scelta tra Libreria Foto, Fotocamera e File.
 
-L'unità è disponibile nel prodotto, nel calcolatore, nel preventivo e viene riconosciuta
-anche dalla lettura automatica di PDF/schede quando compare come g/m², g/m2 o g/mq.
+6. PDF, URL E ERRORI
+- PDF locale: analisi con PDF.js e salvataggio del file in IndexedDB;
+- URL pubblico: analisi server quando accessibile;
+- HTTP 403/CORS: messaggio chiaro e fallback al PDF scaricato manualmente;
+- un errore di rete/PDF/OCR non cancella una scheda già acquisita e non impedisce il salvataggio manuale.
 
-SCHEDA TECNICA
-- stato tecnico separato dal box grafico, così non viene perso durante aggiornamenti dell'interfaccia;
-- seconda copia di sicurezza locale della scheda;
-- recupero automatico dal backup se manca dal record principale;
-- verifica immediata dopo il salvataggio;
-- una nuova analisi fallita non cancella più dal box una scheda già acquisita;
-- il backup viene eliminato insieme al prodotto.
+7. RICERCA ONLINE
+La corrispondenza usa nome, registrazione, produttore, principio attivo/composizione, attività e categoria.
+Il sito del produttore riceve la priorità più alta, seguito da fonti istituzionali e archivi tecnici.
+Forum/social/marketplace restano esclusi. Una sola corrispondenza non viene più analizzata automaticamente
+se non è classificata ad alta affidabilità.
 
-SPAZIO LOCALE
-Le nuove foto vengono compresse maggiormente (max 720 px, JPEG 60%).
-Se lo spazio locale è insufficiente, Dose Verde avvisa esplicitamente e non considera riuscito il salvataggio.
+8. PWA/OFFLINE
+- manifest e service worker mantenuti;
+- cache aggiornata a dose-verde-shell-v1.6.0;
+- archivio, calcolo e preventivo continuano a funzionare offline;
+- le funzioni online mostrano esplicitamente quando la rete non è disponibile;
+- PDF.js/Tesseract richiedono almeno un primo caricamento online se non sono già nella cache runtime.
 
-PWA
-Cache aggiornata alla v1.5.5. Dopo il deploy apri una volta l'app online.
+AGGIORNAMENTO GITHUB / VERCEL
+Carica o sostituisci nella root tutti i file del pacchetto:
+- index.html
+- search.js
+- find-technical.js
+- analyze.js
+- tariffe.js
+- package.json
+- vercel.json
+- manifest.webmanifest
+- sw.js
+- icon-192.png
+- icon-512.png
 
-AGGIORNAMENTO
-Carica/sostituisci nella root tutti i file dello ZIP, poi Commit changes e attendi Vercel.
+Dopo il commit attendi il redeploy Vercel, quindi apri una volta Dose Verde mentre sei online per aggiornare
+la PWA installata.

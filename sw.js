@@ -1,4 +1,4 @@
-const CACHE_NAME='dose-verde-shell-v1.5.5';
+const CACHE_NAME='dose-verde-shell-v1.6.0';
 const SHELL=['/','/index.html','/manifest.webmanifest','/icon-192.png','/icon-512.png'];
 
 self.addEventListener('install',event=>{
@@ -66,14 +66,14 @@ self.addEventListener('fetch',event=>{
   if(url.hostname==='cdnjs.cloudflare.com' || url.hostname==='cdn.jsdelivr.net' || url.hostname==='unpkg.com'){
     event.respondWith(
       caches.match(req).then(hit=>{
-        const network=fetch(req).then(res=>{
+        if(hit)return hit;
+        return fetch(req).then(res=>{
           if(res && (res.ok || res.type==='opaque')){
             const copy=res.clone();
             caches.open(CACHE_NAME).then(cache=>cache.put(req,copy));
           }
           return res;
-        });
-        return hit || network;
+        }).catch(()=>new Response('',{status:503,statusText:'Offline'}));
       })
     );
   }

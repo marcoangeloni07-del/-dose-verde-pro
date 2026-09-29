@@ -25,7 +25,7 @@
 }
 *{box-sizing:border-box}
 html,body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif}
-button,input,select{font:inherit}
+button,input,select,textarea{font:inherit}
 header{
   position:sticky;top:0;z-index:10;
   background:linear-gradient(135deg,#174d34,#2d8056);
@@ -48,7 +48,7 @@ main{max-width:760px;margin:auto;padding:14px 13px 40px}
 }
 h2{font-size:18px;margin:0 0 13px}
 label{display:block;font-size:12px;font-weight:800;color:#4b5c53;margin-bottom:5px}
-input,select{
+input,select,textarea{
   width:100%;border:1px solid #ccd9d0;border-radius:11px;
   padding:12px;background:white;color:var(--ink);font-size:16px
 }
@@ -358,6 +358,11 @@ footer{text-align:center;color:#7a8980;font-size:11px;padding:0 14px 25px}
       </div>
     </div>
 
+    <div style="margin-top:10px">
+      <label for="pNotes">Note prodotto / operative</label>
+      <textarea id="pNotes" rows="3" placeholder="Note facoltative: impiego, osservazioni, limitazioni particolari…"></textarea>
+    </div>
+
     <div class="grid2" style="margin-top:10px">
       <div>
         <label for="pUnit">Unità della dose</label>
@@ -367,7 +372,11 @@ footer{text-align:center;color:#7a8980;font-size:11px;padding:0 14px 25px}
           <option value="ml_100m2">ml/100 m²</option>
           <option value="g_100m2">g/100 m²</option>
           <option value="g_m2">g/m²</option>
+          <option value="kg_100m2">kg/100 m²</option>
+          <option value="kg_1000m2">kg/1000 m²</option>
           <option value="ml_L">ml/L acqua</option>
+          <option value="ml_10L">ml/10 L acqua</option>
+          <option value="g_10L">g/10 L acqua</option>
           <option value="g_L">g/L acqua</option>
           <option value="ml_100L">ml/100 L acqua</option>
           <option value="g_100L">g/100 L acqua</option>
@@ -406,12 +415,12 @@ footer{text-align:center;color:#7a8980;font-size:11px;padding:0 14px 25px}
         <div>
           <div style="display:flex;gap:8px;flex-wrap:wrap">
             <label class="btn secondary small" style="display:inline-block;margin:0;cursor:pointer" for="pPhotoCamera">📷 Scatta foto</label>
-            <label class="btn secondary small" style="display:inline-block;margin:0;cursor:pointer" for="pPhotoFile">🗂️ Scegli immagine/file</label>
+            <label class="btn secondary small" style="display:inline-block;margin:0;cursor:pointer" for="pPhotoFile">🗂️ Foto / File</label>
           </div>
           <input id="pPhotoCamera" type="file" accept="image/*" capture="environment" class="hidden">
           <input id="pPhotoFile" type="file" accept="image/*,.jpg,.jpeg,.png,.webp,.heic,.heif" class="hidden">
           <div class="muted" style="margin-top:7px">
-            “Scatta foto” apre direttamente la fotocamera. “Scegli immagine/file” non forza la fotocamera e permette di selezionare un'immagine già salvata da Foto o File.
+            “Scatta foto” apre direttamente la fotocamera. “Foto / File” non usa capture: su iPhone/iPad Safari può offrire Libreria Foto, Fotocamera e File, secondo le opzioni disponibili sul dispositivo.
           </div>
           <button id="removePhotoBtn" class="btn secondary small hidden" style="margin-top:8px" type="button">Rimuovi foto</button>
           <button id="saveDraftBtn" class="btn secondary small hidden" style="margin-top:8px" type="button">Salva foto come bozza</button>
@@ -453,6 +462,7 @@ footer{text-align:center;color:#7a8980;font-size:11px;padding:0 14px 25px}
           Apri il PDF in Safari, salvalo sul dispositivo e caricalo qui. Il testo viene letto direttamente nel browser, senza chiedere al sito esterno di inviarlo a Vercel.
         </div>
         <button id="analyzeFileBtn" class="btn secondary small" style="margin-top:8px" type="button">Analizza PDF caricato</button>
+        <div id="technicalFileStatus" class="muted" style="margin-top:7px"></div>
       </div>
 
       <div id="analysisResult"></div>
@@ -571,7 +581,7 @@ footer{text-align:center;color:#7a8980;font-size:11px;padding:0 14px 25px}
 
 </main>
 
-<footer>Dose Verde · versione 1.5.5 fertilizzanti</footer>
+<footer>Dose Verde · versione 1.6 loop engineering</footer>
 
 <script>
 (function(){
@@ -582,7 +592,11 @@ var currentPhoto='';
 var selectedTariff=null;
 var currentTechnicalData=null;
 var currentTechnicalScenarioIndex=null;
+var currentTechnicalFile=null;
+var currentTechnicalAttachmentMeta=null;
 var TECH_KEY='dose_verde_technical_backup_v1';
+var ATTACH_DB='dose_verde_files_v1';
+var ATTACH_STORE='attachments';
 
 var defaultProducts=[
   {
@@ -612,7 +626,8 @@ function unitLabel(u){
   var m={
     L_ha:'L/ha',kg_ha:'kg/ha',
     ml_100m2:'ml/100 m²',g_100m2:'g/100 m²',g_m2:'g/m²',
-    ml_L:'ml/L acqua',g_L:'g/L acqua',
+    kg_100m2:'kg/100 m²',kg_1000m2:'kg/1000 m²',
+    ml_L:'ml/L acqua',ml_10L:'ml/10 L acqua',g_10L:'g/10 L acqua',g_L:'g/L acqua',
     ml_100L:'ml/100 L acqua',g_100L:'g/100 L acqua',
     ml_plant:'ml/pianta',g_plant:'g/pianta',
     ml_m:'ml/m lineare',g_m:'g/m lineare'
@@ -653,17 +668,30 @@ function compactTechnicalData(data){
       context:String(c.context||'').slice(0,600)
     };
   }
+  function cleanDetails(d){
+    d=d||{};
+    function arr(v,n){return (Array.isArray(v)?v:[]).slice(0,n||12).map(function(x){return String(x||'').slice(0,500)}).filter(Boolean)}
+    return {
+      summary:String(d.summary||'').slice(0,1800),
+      crops:arr(d.crops,16),targets:arr(d.targets,16),purposes:arr(d.purposes,12),
+      maxTreatments:arr(d.maxTreatments,8),intervals:arr(d.intervals,8),limitations:arr(d.limitations,12),warnings:arr(d.warnings,12)
+    };
+  }
   var scenarios=(data.scenarios||[]).slice(0,24).map(function(s){
     return {
       scenario:String(s.scenario||''),
+      crop:String(s.crop||''),target:String(s.target||''),purpose:String(s.purpose||''),
       dose:cleanCandidate(s.dose),
       water:cleanCandidate(s.water),
-      context:String(s.context||'').slice(0,700)
+      details:cleanDetails(s.details),
+      context:String(s.context||'').slice(0,900)
     };
   });
   return {
     source:String(data.source||'').slice(0,900),
-    snippet:String(data.snippet||'').slice(0,1800),
+    sourceTitle:String(data.sourceTitle||'').slice(0,300),
+    snippet:String(data.snippet||'').slice(0,2200),
+    details:cleanDetails(data.details),
     scenarios:scenarios,
     doseCandidates:(data.doseCandidates||[]).slice(0,24).map(cleanCandidate).filter(Boolean),
     waterCandidates:(data.waterCandidates||[]).slice(0,24).map(cleanCandidate).filter(Boolean),
@@ -686,9 +714,13 @@ function parsedDoseValues(c,fallbackTarget){
     else if(u==='ml'){unit='L_ha';a/=1000;b/=1000;}
     else if(u==='g'){unit='kg_ha';a/=1000;b/=1000;}
     target='prato_terreno';
+  }else if(/1000\s*(?:m2|m²|mq)/.test(basis)){
+    if(u==='kg')unit='kg_1000m2';
+    target='prato_terreno';
   }else if(/100\s*(?:m2|m²|mq)/.test(basis)){
     if(u==='ml')unit='ml_100m2';
     if(u==='g')unit='g_100m2';
+    if(u==='kg')unit='kg_100m2';
     target='prato_terreno';
   }else if(/^(?:m2|m²|mq|metro quadrato|metri quadrati)$/.test(basis)){
     if(u==='g')unit='g_m2';
@@ -696,6 +728,9 @@ function parsedDoseValues(c,fallbackTarget){
   }else if(/100\s*l/.test(basis)){
     if(u==='ml')unit='ml_100L';
     if(u==='g')unit='g_100L';
+  }else if(/10\s*l/.test(basis)){
+    if(u==='ml')unit='ml_10L';
+    if(u==='g')unit='g_10L';
   }else if(basis==='l' || basis.indexOf('litro')>=0 || basis.indexOf('acqua')>=0){
     if(u==='ml')unit='ml_L';
     if(u==='g')unit='g_L';
@@ -714,11 +749,12 @@ function parsedDoseValues(c,fallbackTarget){
   return {unit:unit,min:Number(a.toFixed(4)),max:Number(b.toFixed(4)),target:target};
 }
 function renderSavedTechnicalBox(p){
-  var data=p&&p.technicalData;
-  if(!data)return '';
+  if(!p)return '';
+  var data=p.technicalData||{};
+  if(!p.technicalData && !p.technicalAttachment && !p.notes)return '';
   var scenarios=data.scenarios||[];
   var doses=data.doseCandidates||[];
-  var source=data.source||'Fonte salvata';
+  var source=data.source||'';
   var html='<div class="saved-tech hidden" data-tech-box="'+esc(p.id)+'">'+
     '<h4>📋 Specifiche etichetta salvate</h4>'+
     '<div class="muted">Queste informazioni restano associate al prodotto. Puoi cambiare scenario senza rifare la ricerca.</div>';
@@ -730,6 +766,11 @@ function renderSavedTechnicalBox(p){
       html+='<div class="saved-tech-source"><b>Fonte:</b> '+esc(source)+'</div>';
     }
   }
+  if(p.technicalAttachment&&p.technicalAttachment.key){
+    html+='<button class="btn small secondary" style="margin-top:7px" type="button" data-action="open-tech-pdf" data-id="'+esc(p.id)+'">Apri PDF salvato</button>';
+  }
+  if(p.notes){html+='<div class="saved-tech-context" style="margin-top:8px"><b>Note:</b> '+esc(p.notes)+'</div>'}
+  if(data.details){html+='<div style="margin-top:9px">'+technicalDetailsHtml(data.details,false)+'</div>'}
 
   if(scenarios.length){
     html+='<div style="margin-top:9px"><b>Impieghi / scenari rilevati</b></div>';
@@ -740,6 +781,7 @@ function renderSavedTechnicalBox(p){
         '<div><b>'+esc(label)+'</b>'+(current?' <span class="pill">attivo</span>':'')+'</div>'+
         (s.dose?'<div style="margin-top:4px"><span class="pill">Dose '+esc(s.dose.label||((s.dose.min||0)+'–'+(s.dose.max||0)+' '+(s.dose.unit||'')+'/'+(s.dose.area||'')))+'</span></div>':'')+
         (s.water?'<div style="margin-top:4px"><span class="pill">Acqua '+esc(s.water.label||((s.water.min||0)+'–'+(s.water.max||0)+' '+(s.water.unit||'')+'/'+(s.water.area||'')))+'</span></div>':'')+
+        (s.details?'<details style="margin-top:6px"><summary>Dettagli scenario</summary>'+technicalDetailsHtml(s.details,true)+'</details>':'')+
         (s.context?'<div class="saved-tech-context">'+esc(s.context.slice(0,320))+'</div>':'')+
         '<button class="btn small '+(current?'secondary':'primary')+'" style="margin-top:7px" type="button" data-action="choose-tech-scenario" data-id="'+esc(p.id)+'" data-index="'+i+'">'+
         (current?'Scenario attivo':'Usa questo scenario')+'</button>'+
@@ -752,7 +794,7 @@ function renderSavedTechnicalBox(p){
         (d.context?'<div class="saved-tech-context">'+esc(d.context.slice(0,320))+'</div>':'')+'</div>';
     });
   }else{
-    html+='<div class="muted" style="margin-top:8px">Non sono stati salvati scenari strutturati; resta disponibile l’estratto dell’etichetta.</div>';
+    html+='<div class="muted" style="margin-top:8px">'+(data.snippet?'Non sono stati salvati scenari strutturati; resta disponibile l’estratto dell’etichetta.':'Nessuno scenario strutturato salvato. Puoi comunque aprire l’eventuale PDF allegato o completare i dati manualmente.')+'</div>';
   }
 
   if(data.snippet){
@@ -792,14 +834,87 @@ function chooseSavedTechnicalScenario(id,index){
     renderArchive();
     renderProductSelect(id);
     renderQuoteProducts(id);
+    el('resultBox').classList.add('hidden');
+    if(!el('quoteResult').classList.contains('hidden'))calculateQuote();
   }
 }
 function unitMode(u){
-  if(['L_ha','kg_ha','ml_100m2','g_100m2','g_m2'].indexOf(u)>=0)return 'area';
-  if(['ml_L','g_L','ml_100L','g_100L'].indexOf(u)>=0)return 'water';
+  if(['L_ha','kg_ha','ml_100m2','g_100m2','g_m2','kg_100m2','kg_1000m2'].indexOf(u)>=0)return 'area';
+  if(['ml_L','g_L','ml_10L','g_10L','ml_100L','g_100L'].indexOf(u)>=0)return 'water';
   if(['ml_plant','g_plant'].indexOf(u)>=0)return 'plant';
   if(['ml_m','g_m'].indexOf(u)>=0)return 'length';
   return 'area';
+}
+
+function openAttachmentDb(){
+  return new Promise(function(resolve,reject){
+    if(!window.indexedDB){reject(new Error('Archivio file non supportato'));return}
+    var req;
+    try{req=indexedDB.open(ATTACH_DB,1)}catch(e){reject(e);return}
+    req.onupgradeneeded=function(){
+      var db=req.result;
+      if(!db.objectStoreNames.contains(ATTACH_STORE))db.createObjectStore(ATTACH_STORE,{keyPath:'key'});
+    };
+    req.onsuccess=function(){resolve(req.result)};
+    req.onerror=function(){reject(req.error||new Error('Archivio file non disponibile'))};
+  });
+}
+async function putAttachment(key,file){
+  if(!key || !file)return null;
+  var db=await openAttachmentDb();
+  return new Promise(function(resolve,reject){
+    var tx=db.transaction(ATTACH_STORE,'readwrite');
+    tx.objectStore(ATTACH_STORE).put({
+      key:key,blob:file,name:file.name||'documento.pdf',type:file.type||'application/pdf',size:Number(file.size)||0,updatedAt:new Date().toISOString()
+    });
+    tx.oncomplete=function(){db.close();resolve({key:key,name:file.name||'documento.pdf',type:file.type||'application/pdf',size:Number(file.size)||0})};
+    tx.onerror=function(){var e=tx.error;db.close();reject(e||new Error('Salvataggio file non riuscito'))};
+    tx.onabort=function(){var e=tx.error;db.close();reject(e||new Error('Salvataggio file annullato'))};
+  });
+}
+async function getAttachment(key){
+  if(!key)return null;
+  var db=await openAttachmentDb();
+  return new Promise(function(resolve,reject){
+    var tx=db.transaction(ATTACH_STORE,'readonly');
+    var req=tx.objectStore(ATTACH_STORE).get(key);
+    req.onsuccess=function(){db.close();resolve(req.result||null)};
+    req.onerror=function(){var e=req.error;db.close();reject(e||new Error('Lettura file non riuscita'))};
+  });
+}
+async function deleteAttachment(key){
+  if(!key)return;
+  try{
+    var db=await openAttachmentDb();
+    await new Promise(function(resolve,reject){
+      var tx=db.transaction(ATTACH_STORE,'readwrite');
+      tx.objectStore(ATTACH_STORE).delete(key);
+      tx.oncomplete=function(){db.close();resolve()};
+      tx.onerror=function(){var e=tx.error;db.close();reject(e)};
+    });
+  }catch(e){}
+}
+async function openSavedTechnicalPdf(id){
+  var p=loadProducts().find(function(x){return x.id===id});
+  if(!p || !p.technicalAttachment || !p.technicalAttachment.key){alert('Nessun PDF salvato con questo prodotto.');return}
+  var preview=null;
+  try{preview=window.open('about:blank','_blank')}catch(e){}
+  try{
+    var rec=await getAttachment(p.technicalAttachment.key);
+    if(!rec || !rec.blob){
+      if(preview)preview.close();
+      alert('Il riferimento al PDF esiste, ma il file non è disponibile su questo dispositivo.');return
+    }
+    var url=URL.createObjectURL(rec.blob);
+    if(preview){preview.location.href=url}
+    else{
+      var a=document.createElement('a');a.href=url;a.target='_blank';a.rel='noopener';a.style.display='none';document.body.appendChild(a);a.click();a.remove();
+    }
+    setTimeout(function(){URL.revokeObjectURL(url)},120000);
+  }catch(e){
+    if(preview)preview.close();
+    alert('Non riesco ad aprire il PDF salvato: '+(e.message||e));
+  }
 }
 
 function loadTechnicalBackups(){
@@ -901,8 +1016,9 @@ function updateCalcInputs(){
   if(mode==='plant')msg='Calcolo per numero di piante/esemplari';
   if(mode==='length')msg='Calcolo per metri lineari di siepe o filare';
   if(p){
-    msg='<b>'+esc(p.category||inferCategory(p.activity,p.name))+'</b> · '+esc(targetLabel(p.target||'prato_terreno'))+' · '+msg+
-      ' · dose '+esc(unitLabel(p.unit));
+    var cat=p.category||inferCategory(p.activity,p.name);
+    msg='<b>'+esc(cat)+'</b> · '+esc(targetLabel(p.target||'prato_terreno'))+' · '+msg+' · dose '+esc(unitLabel(p.unit));
+    if(cat==='Concime' || cat==='Biostimolante')msg+=' · calcolo basato sull’unità dichiarata, senza conversioni fitosanitarie automatiche';
   }
   el('calcContext').innerHTML=msg;
 }
@@ -924,8 +1040,12 @@ function amountFor(p,dose,ctx){
   if(p.unit==='ml_100m2')return {value:dose*(areaM2/100),unit:'ml'};
   if(p.unit==='g_100m2')return {value:dose*(areaM2/100),unit:'g'};
   if(p.unit==='g_m2')return {value:dose*areaM2,unit:'g'};
+  if(p.unit==='kg_100m2')return {value:dose*(areaM2/100)*1000,unit:'g'};
+  if(p.unit==='kg_1000m2')return {value:dose*(areaM2/1000)*1000,unit:'g'};
   if(p.unit==='ml_L')return {value:dose*waterL,unit:'ml'};
   if(p.unit==='g_L')return {value:dose*waterL,unit:'g'};
+  if(p.unit==='ml_10L')return {value:dose*(waterL/10),unit:'ml'};
+  if(p.unit==='g_10L')return {value:dose*(waterL/10),unit:'g'};
   if(p.unit==='ml_100L')return {value:dose*(waterL/100),unit:'ml'};
   if(p.unit==='g_100L')return {value:dose*(waterL/100),unit:'g'};
   if(p.unit==='ml_plant')return {value:dose*count,unit:'ml'};
@@ -1023,7 +1143,10 @@ function calculate(){
 function renderArchive(){
   var q=el('search').value.trim().toLowerCase();
   var products=loadProducts()
-    .filter(function(p){return !q || p.name.toLowerCase().indexOf(q)>=0 || (p.scenario||'').toLowerCase().indexOf(q)>=0})
+    .filter(function(p){
+      if(!q)return true;
+      return [p.name,p.scenario,p.category,p.active,p.holder,p.notes].some(function(v){return String(v||'').toLowerCase().indexOf(q)>=0});
+    })
     .sort(function(a,b){return a.name.localeCompare(b.name)});
 
   if(!products.length){
@@ -1046,7 +1169,7 @@ function renderArchive(){
       '<div>'+info+'</div></div></div>'+
       '<div class="actions">'+
       '<button class="btn small secondary" type="button" data-action="edit" data-id="'+esc(p.id)+'">Apri</button>'+
-      (p.technicalData?'<button class="btn small secondary" type="button" data-action="tech" data-id="'+esc(p.id)+'">Scheda etichetta</button>':'')+
+      ((p.technicalData||p.technicalAttachment||p.notes)?'<button class="btn small secondary" type="button" data-action="tech" data-id="'+esc(p.id)+'">Scheda / allegati</button>':'')+
       (p.draft?'':'<button class="btn small primary" type="button" data-action="use" data-id="'+esc(p.id)+'">Usa</button>')+
       '</div>'+
       renderSavedTechnicalBox(p)+
@@ -1068,6 +1191,7 @@ function resetForm(){
   el('pHolder').value='';
   el('pActive').value='';
   el('pActivity').value='';
+  el('pNotes').value='';
   el('searchCommercial').value='';
   el('searchRegistration').value='';
   el('officialResults').innerHTML='';
@@ -1076,11 +1200,14 @@ function resetForm(){
   el('technicalStatus').textContent='';
   el('technicalUrl').value='';
   el('technicalFile').value='';
+  el('technicalFileStatus').textContent='';
   el('analysisResult').innerHTML='';
   el('analysisResult')._data=null;
   el('analysisResult')._selectedScenarioIndex=null;
   currentTechnicalData=null;
   currentTechnicalScenarioIndex=null;
+  currentTechnicalFile=null;
+  currentTechnicalAttachmentMeta=null;
   el('ocrPanel').classList.add('hidden');
   el('ocrText').textContent='';
   el('ocrStatus').textContent='';
@@ -1109,9 +1236,13 @@ function editProduct(id){
   el('pHolder').value=p.holder||'';
   el('pActive').value=p.active||'';
   el('pActivity').value=p.activity||'';
+  el('pNotes').value=p.notes||'';
   el('searchCommercial').value=p.name||'';
   el('searchRegistration').value=p.registration||'';
   currentPhoto=p.photo||'';
+  currentTechnicalFile=null;
+  currentTechnicalAttachmentMeta=p.technicalAttachment||null;
+  el('technicalFileStatus').textContent=currentTechnicalAttachmentMeta?('PDF salvato: '+currentTechnicalAttachmentMeta.name):'';
   el('pPhotoCamera').value='';
   el('pPhotoFile').value='';
   updatePhotoPreview();
@@ -1126,7 +1257,7 @@ function editProduct(id){
     el('technicalStatus').textContent='Specifiche etichetta salvate con questo prodotto.';
   }
 }
-function saveProduct(){
+async function saveProduct(){
   var name=el('pName').value.trim();
   var minText=el('pMin').value;
   var maxText=el('pMax').value;
@@ -1146,6 +1277,21 @@ function saveProduct(){
   var liveTechnical=currentTechnicalData || el('analysisResult')._data || null;
   var technicalData=compactTechnicalData(liveTechnical || (existing&&existing.technicalData) || null);
   var selectedScenarioIndex=Number.isInteger(currentTechnicalScenarioIndex)?currentTechnicalScenarioIndex:el('analysisResult')._selectedScenarioIndex;
+  var previousAttachment=(existing&&existing.technicalAttachment)||null;
+  var technicalAttachment=previousAttachment||currentTechnicalAttachmentMeta||null;
+  var newAttachmentKey='';
+  var attachmentWarning='';
+  if(currentTechnicalFile){
+    try{
+      newAttachmentKey='technical:'+id+':'+Date.now();
+      technicalAttachment=await putAttachment(newAttachmentKey,currentTechnicalFile);
+      currentTechnicalAttachmentMeta=technicalAttachment;
+    }catch(e){
+      newAttachmentKey='';
+      attachmentWarning='Il prodotto sarà salvato, ma non è stato possibile conservare il PDF sul dispositivo: '+(e.message||e);
+      technicalAttachment=previousAttachment;
+    }
+  }
   if(!Number.isInteger(selectedScenarioIndex) && existing && Number.isInteger(existing.selectedScenarioIndex)){
     selectedScenarioIndex=existing.selectedScenarioIndex;
   }
@@ -1166,14 +1312,22 @@ function saveProduct(){
     holder:el('pHolder').value.trim(),
     active:el('pActive').value.trim(),
     activity:el('pActivity').value.trim(),
+    notes:el('pNotes').value.trim(),
     technicalData:technicalData,
+    technicalAttachment:technicalAttachment,
     selectedScenarioIndex:Number.isInteger(selectedScenarioIndex)?selectedScenarioIndex:null,
     draft:!hasDose
   };
 
   var idx=products.findIndex(function(x){return x.id===id});
   if(idx>=0)products[idx]=obj;else products.push(obj);
-  if(!saveProducts(products)) return;
+  if(!saveProducts(products)){
+    if(newAttachmentKey)await deleteAttachment(newAttachmentKey);
+    return;
+  }
+  if(newAttachmentKey && previousAttachment && previousAttachment.key && previousAttachment.key!==newAttachmentKey){
+    await deleteAttachment(previousAttachment.key);
+  }
   if(technicalData)saveTechnicalBackup(id,technicalData);
 
   var verify=loadProducts().find(function(x){return x.id===id});
@@ -1182,6 +1336,7 @@ function saveProduct(){
     return;
   }
 
+  if(attachmentWarning)alert(attachmentWarning);
   if(!hasDose){
     alert('Prodotto salvato come bozza perché la dose non è ancora disponibile. Potrai completarlo in seguito dall’Archivio.');
   }
@@ -1190,14 +1345,16 @@ function saveProduct(){
   renderProductSelect(hasDose?id:null);
   showScreen('archive');
 }
-function deleteProduct(){
+async function deleteProduct(){
   var id=el('editId').value;
   if(!id)return;
   if(!confirm('Eliminare questo prodotto?'))return;
 
+  var original=loadProducts().find(function(p){return p.id===id});
   var products=loadProducts().filter(function(p){return p.id!==id});
   if(!saveProducts(products))return;
   deleteTechnicalBackup(id);
+  if(original&&original.technicalAttachment&&original.technicalAttachment.key)await deleteAttachment(original.technicalAttachment.key);
   resetForm();
   renderProductSelect();
   showScreen('archive');
@@ -1261,7 +1418,7 @@ function removePhoto(){
 }
 
 
-function savePhotoDraft(){
+async function savePhotoDraft(){
   if(!currentPhoto){
     alert('Prima scatta o scegli una foto.');
     return;
@@ -1270,6 +1427,16 @@ function savePhotoDraft(){
   var products=loadProducts();
   var id=el('editId').value || ('draft_'+Date.now());
   var existing=products.find(function(x){return x.id===id});
+  var previousAttachment=(existing&&existing.technicalAttachment)||null;
+  var technicalAttachment=previousAttachment||currentTechnicalAttachmentMeta||null;
+  var newAttachmentKey='';
+  if(currentTechnicalFile){
+    try{
+      newAttachmentKey='technical:'+id+':'+Date.now();
+      technicalAttachment=await putAttachment(newAttachmentKey,currentTechnicalFile);
+      currentTechnicalAttachmentMeta=technicalAttachment;
+    }catch(e){newAttachmentKey='';technicalAttachment=previousAttachment}
+  }
 
   var typedName=el('pName').value.trim();
   var fallbackName='Prodotto da completare';
@@ -1294,6 +1461,8 @@ function savePhotoDraft(){
     holder:el('pHolder').value.trim() || (existing&&existing.holder) || '',
     active:el('pActive').value.trim() || (existing&&existing.active) || '',
     activity:el('pActivity').value.trim() || (existing&&existing.activity) || '',
+    notes:el('pNotes').value.trim() || (existing&&existing.notes) || '',
+    technicalAttachment:technicalAttachment,
     technicalData:compactTechnicalData(currentTechnicalData || el('analysisResult')._data || (existing&&existing.technicalData) || null),
     selectedScenarioIndex:Number.isInteger(currentTechnicalScenarioIndex)?currentTechnicalScenarioIndex:
       ((existing&&Number.isInteger(existing.selectedScenarioIndex))?existing.selectedScenarioIndex:null),
@@ -1302,7 +1471,8 @@ function savePhotoDraft(){
 
   var idx=products.findIndex(function(x){return x.id===id});
   if(idx>=0) products[idx]=obj; else products.push(obj);
-  if(!saveProducts(products)) return;
+  if(!saveProducts(products)){if(newAttachmentKey)await deleteAttachment(newAttachmentKey);return}
+  if(newAttachmentKey && previousAttachment && previousAttachment.key && previousAttachment.key!==newAttachmentKey)await deleteAttachment(previousAttachment.key);
   if(obj.technicalData)saveTechnicalBackup(id,obj.technicalData);
 
   el('editId').value=id;
@@ -1315,6 +1485,7 @@ function savePhotoDraft(){
 
 
 async function apiJson(url){
+  if(navigator.onLine===false)throw new Error('Funzione online non disponibile: il dispositivo è offline. I dati locali restano salvabili.');
   var response;
   try{
     response=await fetch(url,{headers:{'Accept':'application/json'}});
@@ -1410,6 +1581,7 @@ function applyOfficial(index){
 }
 async function loadTesseract(){
   if(window.Tesseract)return;
+  if(navigator.onLine===false)throw new Error('OCR non disponibile offline al primo utilizzo. Aprilo una volta mentre sei online e riprova.');
   await new Promise(function(resolve,reject){
     var s=document.createElement('script');
     s.src='https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js';
@@ -1422,16 +1594,15 @@ function parseOCRText(text){
   if(reg)out.registration=reg[1];
 
   var compact=text.replace(/\s+/g,' ');
-  var ranges=[];
-  var re=/(\d+(?:[.,]\d+)?)\s*[-–]\s*(\d+(?:[.,]\d+)?)\s*(ml|l|litri|kg|g)\s*(?:\/|per)\s*(ha|ettaro|ettari|100\s*(?:m²|m2|mq))/gi;
+  var re=/(\d+(?:[.,]\d+)?)\s*(?:(?:-|–|—|\ba\b)\s*(\d+(?:[.,]\d+)?))?\s*(ml|l|litri|kg|g)\s*(?:\/|per)\s*(ha|ettaro|ettari|1000\s*(?:m²|m2|mq)|100\s*(?:m²|m2|mq)|m²|m2|mq|100\s*l(?:itri)?|10\s*l(?:itri)?|l(?:itro|itri)?(?:\s+d['’]acqua)?)/gi;
   var m;
   while((m=re.exec(compact))!==null){
-    var a=Number(m[1].replace(',','.')),b=Number(m[2].replace(',','.'));
+    var a=Number(m[1].replace(',','.')),b=m[2]?Number(m[2].replace(',','.')):a;
     var unit=m[3].toLowerCase(),area=m[4].toLowerCase();
-    var around=compact.slice(Math.max(0,m.index-100),Math.min(compact.length,re.lastIndex+100)).toLowerCase();
+    var around=compact.slice(Math.max(0,m.index-130),Math.min(compact.length,re.lastIndex+130)).toLowerCase();
     var rec={a:a,b:b,unit:unit,area:area};
-    if((unit==='l'||unit==='litri') && a>=50 && /acqua|volume|miscela/.test(around)) out.water=rec;
-    else if(/dose|dosi|impiego|applic/.test(around) && !out.dose) out.dose=rec;
+    if((unit==='l'||unit==='litri') && a>=20 && /acqua|volume|miscela|irror/.test(around) && /ha|m²|m2|mq/.test(area)) out.water=rec;
+    else if((/dose|dosi|dosaggio|impiego|applic|concim|fertil/.test(around) || !out.dose) && !out.dose) out.dose=rec;
   }
   return out;
 }
@@ -1481,11 +1652,14 @@ async function runOCR(){
 function buildWebQuery(){
   var name=el('pName').value.trim()||el('searchCommercial').value.trim();
   var reg=el('pRegistration').value.trim()||el('searchRegistration').value.trim();
-  return [name,reg,'etichetta scheda tecnica dosi pdf'].filter(Boolean).join(' ');
+  var holder=el('pHolder').value.trim();
+  var active=el('pActive').value.trim().split(/[;,]/)[0];
+  return [name,reg,holder,active,'etichetta scheda tecnica dosi pdf'].filter(Boolean).join(' ');
 }
 function openWebSearch(){
   var q=buildWebQuery();
   if(!q){alert('Inserisci prima il nome del prodotto.');return}
+  if(navigator.onLine===false){alert('La ricerca web richiede una connessione Internet. Archivio, calcoli e salvataggio manuale restano disponibili offline.');return}
   window.open('https://www.google.com/search?q='+encodeURIComponent(q),'_blank','noopener');
 }
 async function findTechnical(autoMode){
@@ -1497,7 +1671,9 @@ async function findTechnical(autoMode){
   try{
     var holder=el('pHolder').value.trim();
     var activity=el('pActivity').value.trim();
-    var data=await apiJson('/api/find-technical?'+new URLSearchParams({q:name,reg:reg,holder:holder,activity:activity}).toString());
+    var active=el('pActive').value.trim();
+    var category=el('pCategory').value;
+    var data=await apiJson('/api/find-technical?'+new URLSearchParams({q:name,reg:reg,holder:holder,activity:activity,active:active,category:category}).toString());
     var items=data.results||[];
     var attempts=data.attempts||0;
     el('technicalStatus').textContent=items.length
@@ -1506,9 +1682,10 @@ async function findTechnical(autoMode){
     el('technicalResults').innerHTML=items.map(function(x,i){
       var badge=x.sourceType?'<span class="source-badge">'+esc(x.sourceType)+'</span>':'';
       var via=x.via?'<span class="source-badge">'+esc(x.via)+'</span>':'';
+      var confidence=x.matchConfidence?'<span class="source-badge">corrispondenza '+esc(x.matchConfidence)+'</span>':'';
       return '<div class="tech-card">'+
         '<b>'+esc(x.title||'Fonte online')+'</b>'+
-        '<div style="margin-top:4px;display:flex;gap:5px;flex-wrap:wrap">'+badge+via+'</div>'+
+        '<div style="margin-top:4px;display:flex;gap:5px;flex-wrap:wrap">'+badge+via+confidence+'</div>'+
         '<div class="tech-url">'+esc(x.url||'')+'</div>'+
         '<div style="display:flex;gap:7px;flex-wrap:wrap;margin-top:8px">'+
         '<button class="btn small secondary" type="button" data-tech-open="'+i+'">Apri</button>'+
@@ -1521,11 +1698,11 @@ async function findTechnical(autoMode){
     if(items.length){
       var first=items[0];
       var second=items.length>1?items[1]:null;
-      var strong=first.autoAnalyze===true;
-      if(items.length===1 || strong){
-        el('technicalStatus').textContent='Fonte probabile trovata. Analisi automatica in corso…';
+      var strong=first.autoAnalyze===true && first.matchConfidence==='alta';
+      if(strong){
+        el('technicalStatus').textContent='Fonte ad alta corrispondenza trovata. Analisi automatica in corso…';
         await analyzeUrl(first.url,true);
-      }else if(autoMode){
+      }else if(autoMode || items.length===1){
         el('technicalStatus').textContent='Sono state trovate più fonti possibili. Scegli “Analizza” sulla scheda corretta.';
       }
     }
@@ -1558,6 +1735,7 @@ async function analyzeUrl(url,autoMode){
 
 async function loadPdfJs(){
   if(window.pdfjsLib)return;
+  if(navigator.onLine===false)throw new Error('Il lettore PDF non è ancora disponibile offline. Apri una volta l’analisi PDF mentre sei online, poi riprova.');
   await new Promise(function(resolve,reject){
     var s=document.createElement('script');
     s.src='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
@@ -1585,6 +1763,41 @@ async function extractPdfText(file){
   }
   return chunks.join('\n');
 }
+function splitTechnicalSentences(text){
+  return String(text||'').replace(/\s+/g,' ').trim().split(/(?<=[.!?;])\s+|\s+(?=(?:ATTENZIONE|AVVERTENZE|IMPIEGHI|MODALITÀ|DOSI|COLTURE|INTERVALLO)\b)/i)
+    .map(function(x){return x.replace(/\s+/g,' ').trim()}).filter(function(x){return x.length>=15 && x.length<=700});
+}
+function uniqTechnical(arr,limit){
+  var seen={},out=[];limit=limit||12;
+  arr.forEach(function(x){var k=String(x||'').toLowerCase();if(x&&!seen[k]&&out.length<limit){seen[k]=1;out.push(x)}});
+  return out;
+}
+function extractTechnicalDetails(text){
+  var sentences=splitTechnicalSentences(text);
+  function pick(re,n){return uniqTechnical(sentences.filter(function(x){return re.test(x)}),n||10)}
+  var crops=pick(/\b(coltur\w*|vite|melo|pero|pesco|albicocc\w*|susino|cilieg\w*|agrum\w*|olivo|pomodor\w*|melanz\w*|peperon\w*|patat\w*|lattug\w*|cavol\w*|ortic\w*|fruttif\w*|cereal\w*|mais|riso|soia|girasol\w*|prat\w*|tappet\w*|ornamental\w*|arbust\w*|alber\w*|floricol\w*|viva\w*|siepi?)\b/i,16);
+  var targets=pick(/\b(contro|bersagli?\w*|afid\w*|aleurod\w*|tripid\w*|coccinigl\w*|acar\w*|insett\w*|larv\w*|minator\w*|oidio|peronospor\w*|ticchiol\w*|ruggin\w*|fung\w*|infestant\w*|malerb\w*|patogen\w*|nematod\w*|lumach\w*|limacc\w*)\b/i,16);
+  var purposes=pick(/\b(per il controllo|per la lotta|per contenere|per prevenire|azione|funzione|finalit\w*|impieg\w*|trattament\w*)\b/i,12);
+  var maxTreatments=pick(/\b(numero massimo|max(?:\.|imo)?\s*(?:di)?\s*\d*\s*tratt\w*|non più di\s*\d+\s*tratt\w*|massimo\s*\d+\s*(?:applic\w*|tratt\w*))\b/i,8);
+  var intervals=pick(/\b(intervallo|intervalli|giorni\s+tra|ogni\s+\d+\s+giorni|ripetere\s+dopo|cadenza)\b/i,8);
+  var limitations=pick(/\b(non applicare|non trattare|non usare|non impiegare|evitare|limitaz|restrizion|carenza|tempo di carenza|prima della raccolta)\b/i,12);
+  var warnings=pick(/\b(avvertenz\w*|attenzione|pericolo|dpi|protezion\w*|api\b|alvear\w*|acque superficiali|deriva|vento|pioggia|temperatur\w*|fitotoss\w*)\b/i,12);
+  var summary=uniqTechnical([].concat(pick(/\b(impieg\w*|modalit\w*|dose|dosi|dosaggio|trattament\w*|applic\w*)\b/i,6),crops.slice(0,2),targets.slice(0,2)),8).join(' ').slice(0,1800);
+  return {summary:summary,crops:crops,targets:targets,purposes:purposes,maxTreatments:maxTreatments,intervals:intervals,limitations:limitations,warnings:warnings};
+}
+function technicalDetailsHtml(d,compact){
+  d=d||{};
+  var parts=[];
+  function add(label,arr){
+    arr=(Array.isArray(arr)?arr:[]).filter(Boolean);
+    if(arr.length)parts.push('<div class="saved-tech-context"><b>'+esc(label)+':</b> '+esc((compact?arr.slice(0,2):arr).join(' · '))+'</div>');
+  }
+  if(d.summary)parts.push('<div class="saved-tech-context"><b>Sintesi:</b> '+esc(d.summary)+'</div>');
+  add('Colture / piante',d.crops);add('Bersagli / finalità',d.targets);add('Finalità',d.purposes);
+  add('Numero massimo trattamenti',d.maxTreatments);add('Intervalli',d.intervals);add('Limitazioni',d.limitations);add('Avvertenze',d.warnings);
+  return parts.join('');
+}
+
 function localScenario(context){
   var lc=String(context||'').toLowerCase();
   if(/(?:1°|1º|primo)\s*anno|anno\s+di\s+impianto|nuov[oi]\s+impiant/.test(lc))return "1° anno d'impianto";
@@ -1608,7 +1821,7 @@ function analyzeLocalText(text){
     if(!arr.some(function(x){return [x.min,x.max,x.unit,x.area,x.scenario].join('|')===key}))arr.push(item);
   }
 
-  var re=/(\d+(?:[.,]\d+)?)\s*(?:(?:-|–|—|÷|\ba\b|\bfino\s+a\b)\s*(\d+(?:[.,]\d+)?))?\s*(ml|l|litri|kg|g)\s*(?:\/|per)\s*(ha|ettaro|ettari|100\s*(?:m²|m2|mq)|m²|m2|mq|metro\s+quadrato|metri\s+quadrati|100\s*l(?:itri)?|l(?:itro|itri)?\s*(?:d['’]acqua|acqua)?|pianta|piante|esemplare|esemplari|albero|alberi|arbusto|arbusti|vaso|vasi|m(?:etro|etri)?\s*(?:lineare|lineari)?)/gi;
+  var re=/(\d+(?:[.,]\d+)?)\s*(?:(?:-|–|—|÷|\ba\b|\bfino\s+a\b)\s*(\d+(?:[.,]\d+)?))?\s*(ml|l|litri|kg|g)\s*(?:\/|per)\s*(ha|ettaro|ettari|1000\s*(?:m²|m2|mq)|100\s*(?:m²|m2|mq)|m²|m2|mq|metro\s+quadrato|metri\s+quadrati|100\s*l(?:itri)?|10\s*l(?:itri)?|l(?:itro|itri)?\s*(?:d['’]acqua|acqua)?|pianta|piante|esemplare|esemplari|albero|alberi|arbusto|arbusti|vaso|vasi|m(?:etro|etri)?\s*(?:lineare|lineari)?)/gi;
   var m;
   while((m=re.exec(compact))!==null){
     var min=Number(m[1].replace(',','.'));
@@ -1637,8 +1850,11 @@ function analyzeLocalText(text){
       best=water.slice().sort(function(a,b){return Math.abs(a.pos-d.pos)-Math.abs(b.pos-d.pos)})[0]||null;
       if(best && Math.abs(best.pos-d.pos)>1800)best=null;
     }
+    var scenario=d.scenario || (best&&best.scenario) || (dose.length===1?'Impiego rilevato':'');
+    var det=extractTechnicalDetails(d.context);
     return {
-      scenario:d.scenario || (best&&best.scenario) || (dose.length===1?'Impiego rilevato':''),
+      scenario:scenario,
+      crop:(det.crops&&det.crops[0])||scenario||'',target:(det.targets&&det.targets[0])||'',purpose:(det.purposes&&det.purposes[0])||'',details:det,
       dose:Object.assign({},d),
       water:best?Object.assign({},best):null,
       context:d.context
@@ -1656,16 +1872,31 @@ function analyzeLocalText(text){
   var start=key>=0?Math.max(0,key-260):0;
   var snippet=compact.slice(start,start+1200);
 
-  return {source:'PDF caricato localmente',doseCandidates:dose.slice(0,16),waterCandidates:water.slice(0,16),scenarios:scenarios.slice(0,12),snippet:snippet};
+  return {source:'PDF caricato localmente',details:extractTechnicalDetails(compact),doseCandidates:dose.slice(0,16),waterCandidates:water.slice(0,16),scenarios:scenarios.slice(0,12),snippet:snippet};
 }
+function technicalFileChanged(){
+  var file=el('technicalFile').files[0]||null;
+  currentTechnicalFile=file;
+  if(file){
+    currentTechnicalAttachmentMeta={key:null,name:file.name||'documento.pdf',type:file.type||'application/pdf',size:Number(file.size)||0};
+    el('technicalFileStatus').textContent='PDF selezionato: '+currentTechnicalAttachmentMeta.name+' · verrà conservato con il prodotto al salvataggio.';
+  }else{
+    currentTechnicalAttachmentMeta=null;
+    el('technicalFileStatus').textContent='';
+  }
+}
+
 async function analyzeLocalPdf(){
-  var file=el('technicalFile').files[0];
+  var file=currentTechnicalFile || el('technicalFile').files[0];
   if(!file){alert('Scegli prima un file PDF.');return}
   setBusy('technicalStatus','Lettura del PDF sul dispositivo…');
   try{
     var text=await extractPdfText(file);
     if(!text || text.trim().length<30)throw new Error('Il PDF non contiene testo leggibile. Potrebbe essere una scansione; in quel caso usa una foto e OCR.');
     var data=analyzeLocalText(text);
+    data.source='PDF caricato: '+(file.name||'documento.pdf');
+    data.sourceTitle=file.name||'documento.pdf';
+    currentTechnicalFile=file;
     el('technicalStatus').textContent='PDF letto localmente. Verifica i dati proposti.';
     el('analysisResult')._selectedScenarioIndex=null;
     currentTechnicalScenarioIndex=null;
@@ -1685,9 +1916,10 @@ function renderAnalysis(data){
   var doses=data.doseCandidates||[];
   var waters=data.waterCandidates||[];
 
-  var sourceBadge=(data.source==='PDF caricato localmente')?'PDF locale · verifica prima di salvare':'Web · verifica prima di salvare';
+  var sourceBadge=(String(data.source||'').indexOf('PDF caricato')===0)?'PDF locale · verifica prima di salvare':'Web · verifica prima di salvare';
   var html='<div class="review"><strong>Dati tecnici trovati</strong>'+
     '<div><span class="source-badge">'+esc(sourceBadge)+'</span></div>';
+  if(data.details){html+='<div style="margin-top:8px">'+technicalDetailsHtml(data.details,false)+'</div>'}
 
   if(scenarios.length>1){
     html+='<div class="muted" style="margin-top:8px"><b>Più impieghi/scenari rilevati:</b> scegli quello che corrisponde al tuo caso.</div>';
@@ -1992,6 +2224,7 @@ function wire(){
   el('findTechnicalBtn').addEventListener('click',findTechnical);
   el('openWebSearchBtn').addEventListener('click',openWebSearch);
   el('analyzeUrlBtn').addEventListener('click',function(){analyzeUrl();});
+  el('technicalFile').addEventListener('change',technicalFileChanged);
   el('analyzeFileBtn').addEventListener('click',analyzeLocalPdf);
   el('officialResults').addEventListener('click',function(e){
     var b=e.target.closest('[data-official-index]');
@@ -2043,6 +2276,7 @@ function wire(){
       var index=Number(b.getAttribute('data-index'));
       chooseSavedTechnicalScenario(id,index);
     }
+    if(action==='open-tech-pdf'){openSavedTechnicalPdf(id);}
     if(action==='use'){
       renderProductSelect(id);
       showScreen('calc');
@@ -2050,7 +2284,7 @@ function wire(){
   });
 }
 function refreshConnectionStatus(){
-  var base='Pronta · versione 1.5.5 fertilizzanti';
+  var base='Pronta · versione 1.6 loop engineering';
   if(navigator.onLine){
     el('status').textContent=base+' · online';
   }else{

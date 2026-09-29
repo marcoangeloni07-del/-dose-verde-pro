@@ -111,22 +111,27 @@ async function fetchText(url,headers={}){
   }
 }
 async function existsPdf(url){
+  const headers={'user-agent':'Mozilla/5.0 DoseVerde/1.6'};
   try{
     const controller=new AbortController();
     const timer=setTimeout(()=>controller.abort(),7000);
-    let r=await fetch(url,{
-      method:'HEAD',redirect:'follow',signal:controller.signal,
-      headers:{'user-agent':'Mozilla/5.0 DoseVerde/1.5.3'}
-    });
+    let r=await fetch(url,{method:'HEAD',redirect:'follow',signal:controller.signal,headers});
     clearTimeout(timer);
     if(r.ok){
       const t=(r.headers.get('content-type')||'').toLowerCase();
-      return t.includes('pdf') || /\.pdf(?:$|[?#])/i.test(url);
+      if(t.includes('pdf') || /\.pdf(?:$|[?#])/i.test(url))return true;
     }
   }catch(e){}
-  return false;
+  try{
+    const controller=new AbortController();
+    const timer=setTimeout(()=>controller.abort(),7000);
+    const r=await fetch(url,{method:'GET',redirect:'follow',signal:controller.signal,headers:{...headers,range:'bytes=0-1023'}});
+    clearTimeout(timer);
+    return r.ok || r.status===206;
+  }catch(e){return false}
 }
-function scoreResult({title,link,description,q,reg,holder,activity,vendorDomain}){
+
+function scoreResult({title,link,description,q,reg,holder,activity,active,category,vendorDomain}){
   const host=hostOf(link);
   if(!host || blockedHost(host)) return null;
 
@@ -136,6 +141,8 @@ function scoreResult({title,link,description,q,reg,holder,activity,vendorDomain}
   const nameTokens=tokens(q);
   const holderTokens=tokens(holder);
   const activityTokens=tokens(activity);
+  const activeTokens=tokens(active);
+  const categoryTokens=tokens(category);
 
   const regHit=!!(reg && joined.includes(reg));
   const exactName=!!(nameNorm && joined.includes(nameNorm));
@@ -147,6 +154,8 @@ function scoreResult({title,link,description,q,reg,holder,activity,vendorDomain}
   const vendorHit=!!(vendorDomain && (host===vendorDomain || host.endsWith('.'+vendorDomain)));
   const holderHit=holderTokens.some(t=>joined.includes(t));
   const activityHit=activityTokens.some(t=>joined.includes(t));
+  const activeHits=activeTokens.filter(t=>joined.includes(t)).length;
+  const categoryHit=categoryTokens.some(t=>joined.includes(t));
   const pdf=/\.pdf(?:$|[?#])/i.test(link);
   const label=/etichetta|label|foglio illustrativo/.test(joined);
   const tech=/scheda tecnica|technical sheet|scheda prodotto|catalogo/.test(joined);
@@ -163,27 +172,32 @@ function scoreResult({title,link,description,q,reg,holder,activity,vendorDomain}
   if(regHit) score+=16;
   if(exactName) score+=14;
   score+=Math.min(tokenHits,4)*3;
-  if(vendorHit) score+=12;
-  if(holderHit) score+=4;
-  if(activityHit) score+=2;
+  if(vendorHit) score+=26;
+  if(holderHit) score+=5;
+  if(activityHit) score+=3;
+  if(activeHits) score+=Math.min(activeHits,3)*4;
+  if(categoryHit) score+=4;
   if(pdf) score+=7;
   if(label) score+=8;
   if(tech) score+=6;
   if(cropScience) score+=3;
   if(sds) score+=1;
-  if(isAuthority(host)) score+=20;
-  if(isBdf(host)) score+=14;
+  if(isAuthority(host)) score+=22;
+  if(isBdf(host)) score+=18;
 
   if(/forum|thread|community|blog|news|notizie|shop|store|ecommerce/.test(joined) && !pdf) score-=10;
   if(score<10) return null;
 
+  const highIdentity=(regHit && (exactName||nameEnough)) || (exactName && vendorHit && (holderHit||activeHits>0));
+  const matchConfidence=(highIdentity && score>=35)?'alta':(score>=22?'media':'bassa');
   return {
     title:title||q||'Fonte online',
     url:link,
     description:description||'',
     score,
     sourceType:sourceType(host,link,joinedRaw,vendorDomain),
-    autoAnalyze:isAuthority(host) || (isBdf(host) && pdf),
+    matchConfidence,
+    autoAnalyze:matchConfidence==='alta' && regHit && (isAuthority(host) || (isBdf(host)&&pdf)),
     trusted:isAuthority(host) || isBdf(host) || vendorHit
   };
 }
@@ -263,6 +277,8 @@ module.exports=async function(req,res){
     const reg=String(req.query.reg||'').replace(/\D/g,'').slice(0,12);
     const holder=String(req.query.holder||'').trim().slice(0,120);
     const activity=String(req.query.activity||'').trim().slice(0,120);
+    const active=String(req.query.active||'').trim().slice(0,180);
+    const category=String(req.query.category||'').trim().slice(0,80);
 
     if(!q && !reg) return res.status(400).json({error:'Nome o registrazione mancanti'});
 
@@ -287,17 +303,19 @@ module.exports=async function(req,res){
     // 2) Several deliberately different queries; do not over-constrain all fields at once.
     const queries=[];
     if(q){
+      if(vendorDomain) queries.push('site:'+vendorDomain+' "'+q.replace(/"/g,'')+'" etichetta OR "scheda tecnica"');
+      if(holder) queries.push('"'+q.replace(/"/g,'')+'" "'+holder.replace(/"/g,'')+'" etichetta pdf');
       queries.push('"'+q.replace(/"/g,'')+'" etichetta pdf');
-      queries.push('"'+q.replace(/"/g,'')+'" "scheda tecnica"');
       if(reg) queries.push('"'+q.replace(/"/g,'')+'" '+reg+' pdf');
+      queries.push('site:salute.gov.it "'+q.replace(/"/g,'')+'"');
       queries.push('site:winbdf.it "'+q.replace(/"/g,'')+'" pdf');
-      if(vendorDomain) queries.push('site:'+vendorDomain+' "'+q.replace(/"/g,'')+'"');
+      if(active) queries.push('"'+q.replace(/"/g,'')+'" "'+active.split(/[;,]/)[0].replace(/"/g,'')+'" "scheda tecnica"');
     }else if(reg){
       queries.push('"'+reg+'" etichetta fitosanitario pdf');
     }
 
     // Sequential small batches reduce the chance of rate-limits and allow early useful results.
-    for(const query of queries.slice(0,5)){
+    for(const query of queries.slice(0,7)){
       attempts++;
       let got=await searchBingRss(query);
       raw.push(...got);
@@ -318,7 +336,7 @@ module.exports=async function(req,res){
       if(!/^https?:\/\//i.test(x.link||'')) continue;
       const c=scoreResult({
         title:x.title,link:x.link,description:x.description,
-        q,reg,holder,activity,vendorDomain
+        q,reg,holder,activity,active,category,vendorDomain
       });
       if(c){
         c.via=x.via||'Web';
@@ -339,3 +357,5 @@ module.exports=async function(req,res){
     return res.status(502).json({error:e.message||'Ricerca tecnica non disponibile'});
   }
 };
+
+module.exports._test={scoreResult,companyDomain,norm,tokens,blockedHost};
