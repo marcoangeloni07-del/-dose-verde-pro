@@ -1,42 +1,38 @@
-DOSE VERDE 1.5.2 — PWA / OFFLINE + SELETTORE FOTO CORRETTO
+DOSE VERDE 1.5.3 — RICERCA SCHEDE ONLINE MIGLIORATA
 
-PWA / OFFLINE
-- installabile su iPhone/iPad dalla schermata Home
-- si apre in modalità standalone, come un'app
-- archivio prodotti, immagini già salvate, calcolatore e preventivo restano disponibili senza Internet
-- ricerca Ministero, ricerca web, prezzario online e download di nuove fonti richiedono Internet
-- PDF.js/Tesseract usati almeno una volta possono essere riutilizzati dalla cache quando disponibili
-- quando torna Internet, la navigazione usa la versione online e aggiorna la cache
+PROBLEMA
+La ricerca automatica precedente dipendeva quasi interamente dal feed RSS pubblico di Bing e usava
+una query molto restrittiva. Questo poteva produrre zero risultati anche quando Google o altri motori
+mostravano chiaramente la scheda del prodotto.
 
-FOTO ETICHETTA
-Sono ora separati due comandi:
-- “Scatta foto” = apre direttamente la fotocamera
-- “Scegli immagine/file” = NON usa capture e permette di selezionare un'immagine già salvata da Foto o File
+NUOVA STRATEGIA
+La funzione "Trova schede online" ora:
+1. prova l'eventuale etichetta diretta tramite numero di registrazione;
+2. esegue più query separate e meno rigide;
+3. prova Bing RSS;
+4. se i risultati sono scarsi, prova anche Bing HTML;
+5. se ancora insufficienti, prova DuckDuckGo HTML;
+6. cerca esplicitamente su WinBDF;
+7. quando riconosce il titolare, aggiunge una ricerca sul sito del produttore
+   (Bayer, Syngenta, BASF, Corteva, Adama, Sipcam, Sumitomo, Certis Belchim, UPL, FMC, ecc.);
+8. filtra forum, social, marketplace e pagine generiche;
+9. mantiene separata l'analisi: un PDF del produttore che restituisce HTTP 403 può essere aperto
+   normalmente e poi caricato con "Analizza PDF caricato".
 
-NUOVI FILE PWA
-- manifest.webmanifest
-- sw.js
-- icon-192.png
-- icon-512.png
+ESEMPIO
+Per prodotti come MOVENTO 48 SC, la nuova ricerca prova anche:
+- "MOVENTO 48 SC" etichetta pdf
+- "MOVENTO 48 SC" "scheda tecnica"
+- site:winbdf.it "MOVENTO 48 SC" pdf
+- site:cropscience.bayer.it "MOVENTO 48 SC"  (se il titolare è riconosciuto come Bayer)
 
-AGGIORNAMENTO GITHUB
-Sostituisci/carica nella root TUTTI questi file:
+AGGIORNAMENTO
+Sostituisci nella root tutti i file del pacchetto oppure, come minimo:
 - index.html
-- search.js
 - find-technical.js
-- analyze.js
-- tariffe.js
 - package.json
-- vercel.json
-- manifest.webmanifest
 - sw.js
-- icon-192.png
-- icon-512.png
 
-Poi fai Commit changes e attendi il redeploy Vercel.
+Consigliato: caricare tutti i file dello ZIP per mantenere la versione coerente.
 
-INSTALLAZIONE SU IPHONE
-Safari > Dose Verde > Condividi > Aggiungi alla schermata Home > Aggiungi.
-
-PRIMO AVVIO OFFLINE
-Apri almeno una volta la nuova versione mentre sei online, così il service worker può memorizzare l'app sul dispositivo.
+Dopo il deploy, apri una volta Dose Verde online. La PWA aggiornerà la cache alla v1.5.3.

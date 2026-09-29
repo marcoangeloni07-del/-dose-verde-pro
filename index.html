@@ -421,8 +421,7 @@ footer{text-align:center;color:#7a8980;font-size:11px;padding:0 14px 25px}
     <div class="assist-box" style="margin-top:14px">
       <div class="assist-title">🌐 Scheda tecnica / etichetta online</div>
       <div class="muted">
-        Cerca prima l'etichetta autorizzata collegata al numero di registrazione e, solo come seconda scelta,
-        altre fonti tecniche pertinenti. Forum, social e risultati generici vengono esclusi.
+        Ricerca su più percorsi: archivio etichette, sito del produttore e motori web. Forum, social e risultati generici vengono esclusi. Se una fonte blocca l'analisi automatica, puoi aprirla e poi caricare il PDF.
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
         <button id="findTechnicalBtn" class="btn secondary small" type="button">Trova schede online</button>
@@ -563,7 +562,7 @@ footer{text-align:center;color:#7a8980;font-size:11px;padding:0 14px 25px}
 
 </main>
 
-<footer>Dose Verde · versione 1.5.2 PWA offline</footer>
+<footer>Dose Verde · versione 1.5.3 ricerca schede</footer>
 
 <script>
 (function(){
@@ -1291,14 +1290,16 @@ async function findTechnical(autoMode){
     var activity=el('pActivity').value.trim();
     var data=await apiJson('/api/find-technical?'+new URLSearchParams({q:name,reg:reg,holder:holder,activity:activity}).toString());
     var items=data.results||[];
+    var attempts=data.attempts||0;
     el('technicalStatus').textContent=items.length
-      ? 'Fonti candidate trovate. Apri o analizza solo quelle pertinenti al prodotto.'
-      : 'Nessuna scheda trovata automaticamente. Puoi usare “Apri ricerca web”.';
+      ? 'Trovate '+items.length+' fonti candidate con '+attempts+' tentativi di ricerca. Verifica sempre prodotto e registrazione.'
+      : 'Nessuna fonte rilevata automaticamente dopo '+attempts+' tentativi. “Apri ricerca web” resta disponibile come fallback.';
     el('technicalResults').innerHTML=items.map(function(x,i){
       var badge=x.sourceType?'<span class="source-badge">'+esc(x.sourceType)+'</span>':'';
+      var via=x.via?'<span class="source-badge">'+esc(x.via)+'</span>':'';
       return '<div class="tech-card">'+
         '<b>'+esc(x.title||'Fonte online')+'</b>'+
-        '<div style="margin-top:4px">'+badge+'</div>'+
+        '<div style="margin-top:4px;display:flex;gap:5px;flex-wrap:wrap">'+badge+via+'</div>'+
         '<div class="tech-url">'+esc(x.url||'')+'</div>'+
         '<div style="display:flex;gap:7px;flex-wrap:wrap;margin-top:8px">'+
         '<button class="btn small secondary" type="button" data-tech-open="'+i+'">Apri</button>'+
@@ -1311,7 +1312,7 @@ async function findTechnical(autoMode){
     if(items.length){
       var first=items[0];
       var second=items.length>1?items[1]:null;
-      var strong=first.trusted===true || (Number(first.score||0)>=12 && (!second || Number(first.score||0)>=Number(second.score||0)+4));
+      var strong=first.autoAnalyze===true;
       if(items.length===1 || strong){
         el('technicalStatus').textContent='Fonte probabile trovata. Analisi automatica in corso…';
         await analyzeUrl(first.url,true);
@@ -1817,7 +1818,7 @@ function wire(){
   });
 }
 function refreshConnectionStatus(){
-  var base='Pronta · versione 1.5.2 PWA offline';
+  var base='Pronta · versione 1.5.3 ricerca schede';
   if(navigator.onLine){
     el('status').textContent=base+' · online';
   }else{

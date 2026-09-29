@@ -1,4 +1,4 @@
-const CACHE_NAME='dose-verde-shell-v1.5.2';
+const CACHE_NAME='dose-verde-shell-v1.5.3';
 const SHELL=['/','/index.html','/manifest.webmanifest','/icon-192.png','/icon-512.png'];
 
 self.addEventListener('install',event=>{
