@@ -90,6 +90,14 @@ footer{text-align:center;color:#7a8980;font-size:11px;padding:0 14px 25px}
 .saved-tech-scenario:first-of-type{border-top:0}
 .saved-tech-context{font-size:11px;color:var(--muted);line-height:1.4;margin-top:5px}
 .saved-tech-source{font-size:11px;overflow-wrap:anywhere;margin-top:6px}
+.cloud-card{border:1px solid var(--line);background:#f8fbf9}
+.cloud-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.cloud-auth-grid{display:grid;grid-template-columns:1.2fr 1fr auto auto;gap:8px;align-items:end}
+.cloud-status{margin-top:8px;line-height:1.45}
+.cloud-dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:#9aa79f;margin-right:5px}
+.cloud-dot.ok{background:#2d8a57}.cloud-dot.warn{background:#c78b18}
+@media(max-width:760px){.cloud-auth-grid{grid-template-columns:1fr 1fr}.cloud-auth-grid .btn{width:100%}}
+@media(max-width:520px){.cloud-auth-grid{grid-template-columns:1fr}}
 
 
 
@@ -261,6 +269,30 @@ footer{text-align:center;color:#7a8980;font-size:11px;padding:0 14px 25px}
 </section>
 
 <section id="screen-archive" class="screen">
+  <div class="card cloud-card">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+      <div>
+        <h2 style="margin:0">☁️ Archivio Cloud</h2>
+        <div class="muted">Lo stesso archivio su iPhone, iPad e PC. L'app continua a salvare prima sul dispositivo e sincronizza quando Internet è disponibile.</div>
+      </div>
+      <button id="cloudSyncBtn" class="btn secondary small hidden" type="button">Sincronizza ora</button>
+    </div>
+    <div id="cloudSetupHint" class="notice hidden" style="margin-top:10px">Cloud non configurato sul server. Segui <b>SUPABASE_SETUP.md</b> nel pacchetto e imposta le variabili Vercel.</div>
+    <div id="cloudAuthBox" class="cloud-auth-grid" style="margin-top:10px">
+      <div><label for="cloudEmail">Email</label><input id="cloudEmail" type="email" autocomplete="email" placeholder="nome@email.it"></div>
+      <div><label for="cloudPassword">Password</label><input id="cloudPassword" type="password" autocomplete="current-password" placeholder="almeno 8 caratteri"></div>
+      <button id="cloudLoginBtn" class="btn primary" type="button">Accedi</button>
+      <button id="cloudSignupBtn" class="btn secondary" type="button">Crea account</button>
+    </div>
+    <div id="cloudSignedBox" class="hidden" style="margin-top:10px">
+      <div class="cloud-row">
+        <span id="cloudUser" class="pill"></span>
+        <button id="cloudLogoutBtn" class="btn secondary small" type="button">Esci dal cloud</button>
+      </div>
+    </div>
+    <div id="cloudStatus" class="muted cloud-status"><span class="cloud-dot"></span>Archivio locale attivo.</div>
+  </div>
+
   <div class="card">
     <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:10px">
       <h2 style="margin:0">Archivio prodotti</h2>
@@ -581,7 +613,9 @@ footer{text-align:center;color:#7a8980;font-size:11px;padding:0 14px 25px}
 
 </main>
 
-<footer>Dose Verde · versione 1.6 loop engineering</footer>
+<footer>Dose Verde · versione 1.7 cloud sync</footer>
+
+<script src="/cloud-sync-core.js"></script>
 
 <script>
 (function(){
@@ -597,6 +631,14 @@ var currentTechnicalAttachmentMeta=null;
 var TECH_KEY='dose_verde_technical_backup_v1';
 var ATTACH_DB='dose_verde_files_v1';
 var ATTACH_STORE='attachments';
+var CLOUD_TOMBSTONES_KEY='dose_verde_cloud_tombstones_v1';
+var cloudClient=null;
+var cloudSession=null;
+var cloudConfig=null;
+var cloudSyncBusy=false;
+var cloudSyncTimer=null;
+var cloudInitPromise=null;
+var CLOUD_BUCKET='dose-verde-files';
 
 var defaultProducts=[
   {
@@ -766,7 +808,7 @@ function renderSavedTechnicalBox(p){
       html+='<div class="saved-tech-source"><b>Fonte:</b> '+esc(source)+'</div>';
     }
   }
-  if(p.technicalAttachment&&p.technicalAttachment.key){
+  if(p.technicalAttachment&&(p.technicalAttachment.key||p.technicalAttachment.cloudPath)){
     html+='<button class="btn small secondary" style="margin-top:7px" type="button" data-action="open-tech-pdf" data-id="'+esc(p.id)+'">Apri PDF salvato</button>';
   }
   if(p.notes){html+='<div class="saved-tech-context" style="margin-top:8px"><b>Note:</b> '+esc(p.notes)+'</div>'}
@@ -827,6 +869,8 @@ function chooseSavedTechnicalScenario(id,index){
   p.waterMin=s.water?Number(s.water.min)||0:0;
   p.waterMax=s.water?Number(s.water.max)||0:0;
   p.selectedScenarioIndex=Number(index);
+  p.updatedAt=nowIso();
+  p.createdAt=p.createdAt||p.updatedAt;
   p.draft=false;
   products[idx]=p;
 
@@ -836,6 +880,7 @@ function chooseSavedTechnicalScenario(id,index){
     renderQuoteProducts(id);
     el('resultBox').classList.add('hidden');
     if(!el('quoteResult').classList.contains('hidden'))calculateQuote();
+    queueCloudSync(250);
   }
 }
 function unitMode(u){
@@ -896,14 +941,26 @@ async function deleteAttachment(key){
 }
 async function openSavedTechnicalPdf(id){
   var p=loadProducts().find(function(x){return x.id===id});
-  if(!p || !p.technicalAttachment || !p.technicalAttachment.key){alert('Nessun PDF salvato con questo prodotto.');return}
+  if(!p || !p.technicalAttachment || (!p.technicalAttachment.key&&!p.technicalAttachment.cloudPath)){alert('Nessun PDF salvato con questo prodotto.');return}
   var preview=null;
   try{preview=window.open('about:blank','_blank')}catch(e){}
   try{
-    var rec=await getAttachment(p.technicalAttachment.key);
+    var rec=p.technicalAttachment.key?await getAttachment(p.technicalAttachment.key):null;
+    if((!rec || !rec.blob) && p.technicalAttachment.cloudPath && cloudClient && cloudSession && navigator.onLine!==false){
+      var down=await cloudClient.storage.from(CLOUD_BUCKET).download(p.technicalAttachment.cloudPath);
+      if(!down.error&&down.data){
+        var key='technical:'+id+':cloud:'+Date.now();
+        var file=new File([down.data],p.technicalAttachment.name||'scheda.pdf',{type:p.technicalAttachment.type||down.data.type||'application/pdf'});
+        var localMeta=await putAttachment(key,file);
+        p.technicalAttachment=Object.assign({},p.technicalAttachment,localMeta,{cloudPath:p.technicalAttachment.cloudPath});
+        var products=loadProducts(),ix=products.findIndex(function(x){return x.id===id});
+        if(ix>=0){products[ix]=p;saveProducts(products)}
+        rec=await getAttachment(key);
+      }
+    }
     if(!rec || !rec.blob){
       if(preview)preview.close();
-      alert('Il riferimento al PDF esiste, ma il file non è disponibile su questo dispositivo.');return
+      alert(p.technicalAttachment.cloudPath&&navigator.onLine===false?'Il PDF è nel Cloud: connettiti a Internet una volta per scaricarlo su questo dispositivo.':'Il riferimento al PDF esiste, ma il file non è disponibile su questo dispositivo.');return
     }
     var url=URL.createObjectURL(rec.blob);
     if(preview){preview.location.href=url}
@@ -940,6 +997,203 @@ function deleteTechnicalBackup(id){
       localStorage.setItem(TECH_KEY,JSON.stringify(all));
     }
   }catch(e){}
+}
+
+
+function nowIso(){return new Date().toISOString()}
+function loadCloudTombstones(){
+  try{
+    var x=JSON.parse(localStorage.getItem(CLOUD_TOMBSTONES_KEY)||'{}');
+    return x&&typeof x==='object'?x:{};
+  }catch(e){return {}}
+}
+function saveCloudTombstones(x){
+  try{localStorage.setItem(CLOUD_TOMBSTONES_KEY,JSON.stringify(x||{}))}catch(e){}
+}
+function recordCloudTombstone(id,p){
+  if(!id)return;
+  var t=loadCloudTombstones();
+  t[id]={updatedAt:nowIso(),cloudPath:p&&p.technicalAttachment&&p.technicalAttachment.cloudPath||''};
+  saveCloudTombstones(t);
+}
+function clearCloudTombstone(id){
+  var t=loadCloudTombstones();
+  if(Object.prototype.hasOwnProperty.call(t,id)){delete t[id];saveCloudTombstones(t)}
+}
+function safeCloudPart(v){return String(v||'file').replace(/[^a-zA-Z0-9._-]+/g,'_').slice(0,120)||'file'}
+function setCloudStatus(message,kind){
+  var box=el('cloudStatus');
+  if(!box)return;
+  box.innerHTML='<span class="cloud-dot '+(kind||'')+'"></span>'+esc(message||'');
+}
+function updateCloudUi(){
+  var configured=!!(cloudConfig&&cloudConfig.enabled);
+  var signed=!!(cloudSession&&cloudSession.user);
+  var offlineUnknown=(navigator.onLine===false&&!cloudConfig);
+  if(el('cloudSetupHint'))el('cloudSetupHint').classList.toggle('hidden',configured||offlineUnknown);
+  if(el('cloudAuthBox'))el('cloudAuthBox').classList.toggle('hidden',!configured||signed);
+  if(el('cloudSignedBox'))el('cloudSignedBox').classList.toggle('hidden',!signed);
+  if(el('cloudSyncBtn'))el('cloudSyncBtn').classList.toggle('hidden',!signed);
+  if(signed&&el('cloudUser'))el('cloudUser').textContent=cloudSession.user.email||'Account cloud';
+  if(offlineUnknown)setCloudStatus('Offline: archivio locale disponibile; il Cloud verrà verificato quando torna Internet.','warn');
+  else if(!configured)setCloudStatus('Archivio locale attivo · cloud non ancora configurato','warn');
+  else if(signed)setCloudStatus('Cloud collegato · sincronizzazione automatica attiva','ok');
+  else setCloudStatus('Cloud disponibile · accedi con lo stesso account su ogni dispositivo','');
+}
+async function ensureSupabaseSdk(){
+  if(window.supabase&&window.supabase.createClient)return;
+  if(navigator.onLine===false)throw new Error('Connessione Internet necessaria per il Cloud.');
+  await new Promise(function(resolve,reject){
+    var existing=document.querySelector('script[data-dose-verde-supabase]');
+    if(existing){
+      if(window.supabase&&window.supabase.createClient){resolve();return}
+      existing.addEventListener('load',resolve,{once:true});
+      existing.addEventListener('error',function(){reject(new Error('Libreria Cloud non disponibile.'))},{once:true});
+      return;
+    }
+    var s=document.createElement('script');
+    s.src='https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2';
+    s.async=true;s.dataset.doseVerdeSupabase='1';
+    s.onload=resolve;s.onerror=function(){reject(new Error('Libreria Cloud non disponibile.'))};
+    document.head.appendChild(s);
+  });
+  if(!window.supabase||!window.supabase.createClient)throw new Error('Libreria Cloud non inizializzata.');
+}
+async function initCloud(){
+  if(navigator.onLine===false){updateCloudUi();return}
+  if(cloudInitPromise)return cloudInitPromise;
+  cloudInitPromise=(async function(){
+    try{
+      var r=await fetch('/api/cloud-config',{cache:'no-store',headers:{Accept:'application/json'}});
+      var cfg=await r.json();
+      cloudConfig=cfg||{enabled:false};
+      if(!cloudConfig.enabled){updateCloudUi();return}
+      await ensureSupabaseSdk();
+      cloudClient=window.supabase.createClient(cloudConfig.url,cloudConfig.key,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
+      var sessionResult=await cloudClient.auth.getSession();
+      cloudSession=sessionResult&&sessionResult.data?sessionResult.data.session:null;
+      cloudClient.auth.onAuthStateChange(function(event,session){
+        cloudSession=session||null;updateCloudUi();
+        if(cloudSession&&navigator.onLine!==false)queueCloudSync(250);
+      });
+      updateCloudUi();
+      if(cloudSession)queueCloudSync(350);
+    }catch(e){
+      cloudConfig={enabled:false,error:e.message||String(e)};
+      setCloudStatus('Cloud non disponibile: '+(e.message||e),'warn');
+      updateCloudUi();
+      cloudInitPromise=null;
+    }
+  })();
+  return cloudInitPromise;
+}
+async function cloudLogin(){
+  if(!cloudClient){await initCloud()}
+  if(!cloudClient){alert('Cloud non configurato.');return}
+  var email=el('cloudEmail').value.trim(),password=el('cloudPassword').value;
+  if(!email||!password){alert('Inserisci email e password.');return}
+  setCloudStatus('Accesso al Cloud…','');
+  var result=await cloudClient.auth.signInWithPassword({email:email,password:password});
+  if(result.error){setCloudStatus('Accesso non riuscito: '+result.error.message,'warn');return}
+  cloudSession=result.data.session;updateCloudUi();await syncCloud(false);
+}
+async function cloudSignup(){
+  if(!cloudClient){await initCloud()}
+  if(!cloudClient){alert('Cloud non configurato.');return}
+  var email=el('cloudEmail').value.trim(),password=el('cloudPassword').value;
+  if(!email||password.length<8){alert('Inserisci una email valida e una password di almeno 8 caratteri.');return}
+  setCloudStatus('Creazione account…','');
+  var result=await cloudClient.auth.signUp({email:email,password:password,options:{emailRedirectTo:location.origin+'/'}});
+  if(result.error){setCloudStatus('Creazione account non riuscita: '+result.error.message,'warn');return}
+  cloudSession=result.data.session||null;updateCloudUi();
+  if(cloudSession){await syncCloud(false)}else setCloudStatus('Account creato. Conferma l’email, poi torna qui e premi Accedi.','ok');
+}
+async function cloudLogout(){
+  if(cloudClient)await cloudClient.auth.signOut();
+  cloudSession=null;updateCloudUi();
+}
+function queueCloudSync(delay){
+  if(cloudSyncTimer)clearTimeout(cloudSyncTimer);
+  cloudSyncTimer=setTimeout(function(){syncCloud(true)},delay==null?700:delay);
+}
+function remotePayloadWithLocalAttachment(payload,local){
+  var p=JSON.parse(JSON.stringify(payload||{}));
+  if(p.technicalAttachment){
+    var la=local&&local.technicalAttachment;
+    var same=la&&((p.technicalAttachment.cloudPath&&la.cloudPath===p.technicalAttachment.cloudPath)||
+      (!p.technicalAttachment.cloudPath&&la.name===p.technicalAttachment.name&&Number(la.size||0)===Number(p.technicalAttachment.size||0)));
+    if(same&&la.key)p.technicalAttachment.key=la.key;
+  }
+  return p;
+}
+async function prepareProductForCloud(product,userId,warnings){
+  var local=product;
+  var cloud=JSON.parse(JSON.stringify(product));
+  if(local.technicalAttachment){
+    var att=local.technicalAttachment;
+    if(att.key&&!att.cloudPath){
+      try{
+        var rec=await getAttachment(att.key);
+        if(rec&&rec.blob){
+          var path=userId+'/'+safeCloudPart(local.id)+'/'+Date.now()+'-'+safeCloudPart(att.name||'scheda.pdf');
+          var up=await cloudClient.storage.from(CLOUD_BUCKET).upload(path,rec.blob,{upsert:true,contentType:att.type||rec.type||'application/pdf'});
+          if(up.error)throw up.error;
+          att.cloudPath=path;
+          cloud.technicalAttachment=Object.assign({},att,{cloudPath:path});
+          if(att.previousCloudPath&&att.previousCloudPath!==path){
+            cloudClient.storage.from(CLOUD_BUCKET).remove([att.previousCloudPath]).catch(function(){});
+            delete att.previousCloudPath;delete cloud.technicalAttachment.previousCloudPath;
+          }
+        }
+      }catch(e){warnings.push('PDF non sincronizzato per '+local.name+': '+(e.message||e))}
+    }
+    if(cloud.technicalAttachment){delete cloud.technicalAttachment.key;delete cloud.technicalAttachment.previousCloudPath}
+  }
+  return cloud;
+}
+async function syncCloud(quiet){
+  if(cloudSyncBusy)return;
+  if(navigator.onLine===false){if(!quiet)setCloudStatus('Offline: i dati restano salvati sul dispositivo e saranno sincronizzati più tardi.','warn');return}
+  if(!cloudClient||!cloudSession||!cloudSession.user){if(!quiet)setCloudStatus('Accedi al Cloud per sincronizzare.','warn');return}
+  if(!window.DoseVerdeSyncCore){if(!quiet)setCloudStatus('Modulo di sincronizzazione non disponibile.','warn');return}
+  cloudSyncBusy=true;
+  var warnings=[];
+  try{
+    if(!quiet)setCloudStatus('Sincronizzazione in corso…','');
+    var remoteResult=await cloudClient.from('dose_verde_products').select('id,payload,updated_at,deleted_at').eq('user_id',cloudSession.user.id);
+    if(remoteResult.error)throw remoteResult.error;
+    var local=loadProducts();
+    var tombstones=loadCloudTombstones();
+    var plan=window.DoseVerdeSyncCore.planSync(local,remoteResult.data||[],tombstones);
+    var byId={};plan.merged.forEach(function(p){byId[p.id]=p});
+
+    for(var i=0;i<plan.uploadIds.length;i++){
+      var id=plan.uploadIds[i],p=byId[id];if(!p)continue;
+      if(!p.updatedAt)p.updatedAt=nowIso();
+      var cloudPayload=await prepareProductForCloud(p,cloudSession.user.id,warnings);
+      var up=await cloudClient.from('dose_verde_products').upsert({user_id:cloudSession.user.id,id:id,payload:cloudPayload,updated_at:p.updatedAt,deleted_at:null},{onConflict:'user_id,id'});
+      if(up.error)throw up.error;
+      clearCloudTombstone(id);
+    }
+    var tomb=loadCloudTombstones();
+    for(var d=0;d<plan.deleteIds.length;d++){
+      var did=plan.deleteIds[d],meta=tomb[did]||tombstones[did]||{updatedAt:nowIso()};
+      var del=await cloudClient.from('dose_verde_products').upsert({user_id:cloudSession.user.id,id:did,payload:null,updated_at:meta.updatedAt||nowIso(),deleted_at:meta.updatedAt||nowIso()},{onConflict:'user_id,id'});
+      if(del.error)throw del.error;
+      if(meta.cloudPath){var rm=await cloudClient.storage.from(CLOUD_BUCKET).remove([meta.cloudPath]);if(rm.error)warnings.push('Allegato cloud non eliminato: '+rm.error.message)}
+      clearCloudTombstone(did);
+    }
+
+    // Products pulled from cloud can reuse an existing local PDF cache when it matches.
+    var oldLocal={};local.forEach(function(p){oldLocal[p.id]=p});
+    var finalProducts=plan.merged.map(function(p){return remotePayloadWithLocalAttachment(p,oldLocal[p.id])});
+    if(!saveProducts(finalProducts))throw new Error('Impossibile salvare localmente i dati sincronizzati.');
+    renderArchive();renderProductSelect();renderQuoteProducts();
+    var stamp=new Date().toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'});
+    setCloudStatus('Sincronizzato alle '+stamp+(warnings.length?' · '+warnings[0]:''),warnings.length?'warn':'ok');
+  }catch(e){
+    setCloudStatus('Sincronizzazione non riuscita: '+(e.message||e)+'. I dati locali non sono stati persi.','warn');
+  }finally{cloudSyncBusy=false}
 }
 
 function loadProducts(){
@@ -1285,6 +1539,7 @@ async function saveProduct(){
     try{
       newAttachmentKey='technical:'+id+':'+Date.now();
       technicalAttachment=await putAttachment(newAttachmentKey,currentTechnicalFile);
+      if(previousAttachment&&previousAttachment.cloudPath)technicalAttachment.previousCloudPath=previousAttachment.cloudPath;
       currentTechnicalAttachmentMeta=technicalAttachment;
     }catch(e){
       newAttachmentKey='';
@@ -1316,6 +1571,8 @@ async function saveProduct(){
     technicalData:technicalData,
     technicalAttachment:technicalAttachment,
     selectedScenarioIndex:Number.isInteger(selectedScenarioIndex)?selectedScenarioIndex:null,
+    createdAt:(existing&&existing.createdAt)||nowIso(),
+    updatedAt:nowIso(),
     draft:!hasDose
   };
 
@@ -1344,6 +1601,7 @@ async function saveProduct(){
   resetForm();
   renderProductSelect(hasDose?id:null);
   showScreen('archive');
+  queueCloudSync(250);
 }
 async function deleteProduct(){
   var id=el('editId').value;
@@ -1351,6 +1609,7 @@ async function deleteProduct(){
   if(!confirm('Eliminare questo prodotto?'))return;
 
   var original=loadProducts().find(function(p){return p.id===id});
+  recordCloudTombstone(id,original);
   var products=loadProducts().filter(function(p){return p.id!==id});
   if(!saveProducts(products))return;
   deleteTechnicalBackup(id);
@@ -1358,6 +1617,7 @@ async function deleteProduct(){
   resetForm();
   renderProductSelect();
   showScreen('archive');
+  queueCloudSync(250);
 }
 
 function updatePhotoPreview(){
@@ -1434,6 +1694,7 @@ async function savePhotoDraft(){
     try{
       newAttachmentKey='technical:'+id+':'+Date.now();
       technicalAttachment=await putAttachment(newAttachmentKey,currentTechnicalFile);
+      if(previousAttachment&&previousAttachment.cloudPath)technicalAttachment.previousCloudPath=previousAttachment.cloudPath;
       currentTechnicalAttachmentMeta=technicalAttachment;
     }catch(e){newAttachmentKey='';technicalAttachment=previousAttachment}
   }
@@ -1466,6 +1727,8 @@ async function savePhotoDraft(){
     technicalData:compactTechnicalData(currentTechnicalData || el('analysisResult')._data || (existing&&existing.technicalData) || null),
     selectedScenarioIndex:Number.isInteger(currentTechnicalScenarioIndex)?currentTechnicalScenarioIndex:
       ((existing&&Number.isInteger(existing.selectedScenarioIndex))?existing.selectedScenarioIndex:null),
+    createdAt:(existing&&existing.createdAt)||nowIso(),
+    updatedAt:nowIso(),
     draft:true
   };
 
@@ -1480,6 +1743,7 @@ async function savePhotoDraft(){
   el('formTitle').textContent='Bozza prodotto';
   el('deleteBtn').classList.remove('hidden');
   alert('Foto salvata come bozza. Puoi completare i dati adesso o più tardi dall’Archivio.');
+  queueCloudSync(300);
 }
 
 
@@ -2211,6 +2475,10 @@ function wire(){
 
   el('plusBtn').addEventListener('click',newProduct);
   el('newFromArchive').addEventListener('click',newProduct);
+  el('cloudLoginBtn').addEventListener('click',function(){cloudLogin().catch(function(e){setCloudStatus(e.message||e,'warn')})});
+  el('cloudSignupBtn').addEventListener('click',function(){cloudSignup().catch(function(e){setCloudStatus(e.message||e,'warn')})});
+  el('cloudLogoutBtn').addEventListener('click',function(){cloudLogout().catch(function(e){setCloudStatus(e.message||e,'warn')})});
+  el('cloudSyncBtn').addEventListener('click',function(){syncCloud(false)});
   el('calcBtn').addEventListener('click',calculate);
   el('calcProduct').addEventListener('change',updateCalcInputs);
   el('saveBtn').addEventListener('click',saveProduct);
@@ -2284,7 +2552,7 @@ function wire(){
   });
 }
 function refreshConnectionStatus(){
-  var base='Pronta · versione 1.6 loop engineering';
+  var base='Pronta · versione 1.7 cloud sync';
   if(navigator.onLine){
     el('status').textContent=base+' · online';
   }else{
@@ -2300,8 +2568,9 @@ function start(){
   renderQuoteProducts();
   loadQuoteDefaults();
   refreshConnectionStatus();
-  window.addEventListener('online',refreshConnectionStatus);
-  window.addEventListener('offline',refreshConnectionStatus);
+  window.addEventListener('online',function(){refreshConnectionStatus();initCloud().then(function(){queueCloudSync(450)})});
+  window.addEventListener('offline',function(){refreshConnectionStatus();setCloudStatus('Offline: archivio locale disponibile, sincronizzazione in attesa.','warn')});
+  initCloud();
 }
 
 window.addEventListener('DOMContentLoaded',start);

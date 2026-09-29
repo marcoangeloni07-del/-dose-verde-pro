@@ -1,85 +1,28 @@
-DOSE VERDE PRO 1.6 — LOOP ENGINEERING
+DOSE VERDE PRO 1.7 — ARCHIVIO CLOUD SINCRONIZZATO
 
-Questa versione nasce da un ciclo completo ANALISI → MODIFICA → TEST → CORREZIONE → RITEST.
-Mantiene l'interfaccia generale della 1.5.x e conserva compatibilità con i prodotti già presenti in localStorage.
+NUOVO
+- stesso archivio su iPhone, iPad e PC tramite account personale Supabase
+- salvataggio local-first: l'app salva sempre prima sul dispositivo
+- sincronizzazione automatica all'accesso, al ritorno online e dopo modifiche
+- pulsante “Sincronizza ora”
+- merge tra archivio locale e cloud con confronto delle date di modifica
+- cancellazioni sincronizzate tramite tombstone
+- PDF nel bucket privato Supabase Storage; download/cache automatica sul nuovo dispositivo
+- foto compresse incluse nel record cloud per restare immediatamente disponibili anche offline dopo la sincronizzazione
+- fallback completo: se Cloud/Supabase non sono configurati o la rete fallisce, l'archivio locale continua a funzionare
 
-MIGLIORIE PRINCIPALI
+SICUREZZA
+- nessuna service-role key nel frontend
+- accesso con Supabase Auth email/password
+- Row Level Security su tabella prodotti
+- Storage privato separato per utente
 
-1. PERSISTENZA PRODOTTO E SCHEDA TECNICA
-- nome, categoria, scenario, registrazione, titolare, sostanze attive, attività/formulazione e note vengono conservati;
-- la scheda tecnica mantiene fonte, sintesi, scenari, dosi, acqua e dettagli estratti;
-- viene conservato un backup separato della scheda tecnica per recuperarla se manca dal record principale;
-- le foto restano associate al prodotto;
-- i PDF caricati dal dispositivo vengono salvati in IndexedDB e possono essere riaperti dall'Archivio;
-- il salvataggio del PDF è atomico: un errore nel record principale non sovrascrive il PDF precedente.
+CONFIGURAZIONE OBBLIGATORIA PER ATTIVARE IL CLOUD
+Leggi SUPABASE_SETUP.md ed esegui supabase_setup.sql, poi imposta in Vercel:
+- SUPABASE_URL
+- SUPABASE_PUBLISHABLE_KEY (oppure SUPABASE_ANON_KEY)
 
-2. BOX TECNICO PERMANENTE
-Il pulsante “Scheda / allegati” nell'Archivio mostra, quando disponibili:
-- fonte;
-- sintesi;
-- colture/piante;
-- bersagli/finalità;
-- dosi e volumi d'acqua;
-- numero massimo di trattamenti;
-- intervalli;
-- limitazioni;
-- avvertenze;
-- note;
-- PDF salvato sul dispositivo.
+Se non configuri queste variabili, Dose Verde funziona esattamente come prima in locale.
 
-3. SCENARI MULTIPLI
-Gli scenari estratti restano memorizzati. “Usa questo scenario” aggiorna dose minima/massima,
-unità, volume d'acqua e bersaglio. Il calcolatore viene invalidato e il preventivo viene ricalcolato
-se era già aperto.
-
-4. FERTILIZZANTI
-Unità supportate e verificate:
-- g/m²
-- kg/100 m²
-- kg/1000 m²
-- kg/ha
-- ml/L
-- ml/10 L
-- L/ha
-Sono supportate anche le precedenti unità. Per Concime/Biostimolante il calcolo segue l'unità dichiarata,
-senza conversioni fitosanitarie implicite.
-
-5. FOTO / FILE SU IPHONE-IPAD
-- “Scatta foto” usa capture=environment;
-- “Foto / File” non usa capture e lascia a Safari/iOS la scelta tra Libreria Foto, Fotocamera e File.
-
-6. PDF, URL E ERRORI
-- PDF locale: analisi con PDF.js e salvataggio del file in IndexedDB;
-- URL pubblico: analisi server quando accessibile;
-- HTTP 403/CORS: messaggio chiaro e fallback al PDF scaricato manualmente;
-- un errore di rete/PDF/OCR non cancella una scheda già acquisita e non impedisce il salvataggio manuale.
-
-7. RICERCA ONLINE
-La corrispondenza usa nome, registrazione, produttore, principio attivo/composizione, attività e categoria.
-Il sito del produttore riceve la priorità più alta, seguito da fonti istituzionali e archivi tecnici.
-Forum/social/marketplace restano esclusi. Una sola corrispondenza non viene più analizzata automaticamente
-se non è classificata ad alta affidabilità.
-
-8. PWA/OFFLINE
-- manifest e service worker mantenuti;
-- cache aggiornata a dose-verde-shell-v1.6.0;
-- archivio, calcolo e preventivo continuano a funzionare offline;
-- le funzioni online mostrano esplicitamente quando la rete non è disponibile;
-- PDF.js/Tesseract richiedono almeno un primo caricamento online se non sono già nella cache runtime.
-
-AGGIORNAMENTO GITHUB / VERCEL
-Carica o sostituisci nella root tutti i file del pacchetto:
-- index.html
-- search.js
-- find-technical.js
-- analyze.js
-- tariffe.js
-- package.json
-- vercel.json
-- manifest.webmanifest
-- sw.js
-- icon-192.png
-- icon-512.png
-
-Dopo il commit attendi il redeploy Vercel, quindi apri una volta Dose Verde mentre sei online per aggiornare
-la PWA installata.
+AGGIORNAMENTO GITHUB
+Sostituisci/carica TUTTI i file del pacchetto nella root, poi Commit e nuovo deploy Vercel.

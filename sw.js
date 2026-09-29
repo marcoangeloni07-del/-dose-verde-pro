@@ -1,5 +1,5 @@
-const CACHE_NAME='dose-verde-shell-v1.6.0';
-const SHELL=['/','/index.html','/manifest.webmanifest','/icon-192.png','/icon-512.png'];
+const CACHE_NAME='dose-verde-shell-v1.7.0';
+const SHELL=['/','/index.html','/manifest.webmanifest','/icon-192.png','/icon-512.png','/cloud-sync-core.js'];
 
 self.addEventListener('install',event=>{
   event.waitUntil(

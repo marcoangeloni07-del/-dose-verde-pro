@@ -1,21 +1,97 @@
-DOSE VERDE PRO 1.6 — RAPPORTO TEST LOOP ENGINEERING
+DOSE VERDE PRO 1.7 — RAPPORTO TEST LOOP ENGINEERING
+Data: 29/09/2026
+
+OBIETTIVO DEL CICLO
+Aggiungere un archivio cloud unico tra iPhone, iPad e PC senza perdere il comportamento local-first/offline della v1.6.
+
+PROBLEMI / RISCHI ANALIZZATI
+- archivio precedente confinato a localStorage/IndexedDB del singolo dispositivo;
+- rischio di perdita di modifiche quando due dispositivi modificano lo stesso prodotto;
+- cancellazioni offline da propagare al cloud;
+- PDF salvati in IndexedDB non trasferibili automaticamente a un nuovo dispositivo;
+- necessità di mantenere funzionante l'app se Supabase non è configurato o non è raggiungibile;
+- necessità di isolare i dati per utente senza esporre chiavi privilegiate nel browser.
+
+MODIFICHE IMPLEMENTATE
+- Supabase Auth email/password;
+- tabella cloud dose_verde_products con payload JSON completo per prodotto;
+- RLS per user_id su SELECT/INSERT/UPDATE/DELETE;
+- bucket privato dose-verde-files con policy per cartella utente;
+- salvataggio local-first: localStorage/IndexedDB restano la fonte immediata sul dispositivo;
+- sincronizzazione automatica dopo salvataggio, cambio scenario, bozza, cancellazione, login e ritorno online;
+- pulsante Sincronizza ora;
+- merge last-write-wins per singolo prodotto usando updatedAt/updated_at;
+- tombstone locali per propagare le cancellazioni;
+- upload dei PDF in Storage; download on-demand sul nuovo dispositivo e successiva cache IndexedDB locale;
+- preservazione delle foto compresse nel payload prodotto per visualizzazione immediata dopo la sincronizzazione;
+- endpoint /api/cloud-config che espone solo URL + publishable/anon key, mai service-role/secret key;
+- fallback locale completo quando Cloud o rete non sono disponibili;
+- service worker aggiornato alla cache v1.7.0 e cloud-sync-core.js incluso nella shell offline.
 
 TEST ESEGUITI
-- sintassi JavaScript: index.html (entrambi gli script), analyze.js, find-technical.js, search.js, tariffe.js, sw.js: PASS
-- JSON: manifest.webmanifest, vercel.json, package.json: PASS
-- audit DOM: 100 riferimenti el('id') verificati, nessun ID mancante o duplicato: PASS
-- UI headless Chromium: creazione/salvataggio prodotto, analisi tecnica mock, scenari multipli, riapertura dopo nuova sessione, recupero da backup, cambio scenario, calcolo, preventivo, errore di rete, foto da file, PDF metadata: PASS
-- console/page errors nel test UI: nessun errore o warning: PASS
-- conversioni: g/m², kg/100 m², kg/1000 m², kg/ha, ml/L, ml/10 L, L/ha: PASS
-- OCR parser sintetico per g/m² e ml/10 L: PASS
-- estrazione tecnica sintetica: colture, bersagli, massimo trattamenti, intervalli, limitazioni/avvertenze: PASS
-- filtro ricerca: fonte produttore premiata, risultato city-data/forum escluso, corrispondenza istituzionale esatta ad alta affidabilità: PASS
-- PWA static audit: manifest standalone, icone, shell cache, service worker e file Vercel presenti: PASS
+1. Sintassi JavaScript
+   - index.html script inline: PASS
+   - search.js: PASS
+   - find-technical.js: PASS
+   - analyze.js: PASS
+   - tariffe.js: PASS
+   - cloud-config.js: PASS
+   - cloud-sync-core.js: PASS
+   - sw.js: PASS
 
-LIMITI DI VERIFICA DELL'AMBIENTE
-- il browser disponibile nel container blocca per policy amministrativa la navigazione verso localhost, quindi il service worker non è stato installato end-to-end in una vera origine HTTP durante il test; manifest, service worker e routing sono stati verificati staticamente;
-- l'installazione npm locale delle dipendenze server (pdf-parse, adm-zip, iconv-lite) non è terminata entro il timeout di rete del container. Le funzioni modificate sono state controllate sintatticamente e le loro parti pure sono state testate; Vercel installerà le dipendenze da package.json al deploy;
-- il menu nativo Foto/Fotocamera/File di Safari iOS/iPadOS non può essere simulato fedelmente in Chromium. Sono stati verificati gli attributi HTML corretti: capture solo sull'input fotocamera e nessun capture sull'input Foto/File.
+2. Audit DOM
+   - 115 ID statici, nessun duplicato: PASS
+   - 111 riferimenti el('...'), nessun ID mancante: PASS
+   - controlli Cloud richiesti presenti: PASS
+
+3. Cloud config
+   - con SUPABASE_URL + SUPABASE_PUBLISHABLE_KEY -> enabled=true e valori restituiti: PASS
+   - senza configurazione -> enabled=false, app locale ancora disponibile: PASS
+
+4. Motore di merge cloud (unit test)
+   - locale più recente prevale e viene caricato: PASS
+   - remoto più recente prevale e viene scaricato: PASS
+   - cancellazione remota più recente rimuove il locale: PASS
+   - modifica locale più recente può ripristinare un record cancellato remoto: PASS
+   - tombstone locale più recente prevale e viene propagato: PASS
+
+5. Regressione conversioni principali
+   - g/m²: PASS
+   - kg/100 m²: PASS
+   - kg/1000 m²: PASS
+   - kg/ha: PASS
+   - ml/L: PASS
+   - ml/10 L: PASS
+   - L/ha: PASS
+
+6. PWA / build statica
+   - manifest.webmanifest JSON valido: PASS
+   - vercel.json JSON valido: PASS
+   - package.json JSON valido: PASS
+   - cloud-sync-core.js incluso nella shell PWA: PASS
+   - /api/cloud-config definito nelle route Vercel: PASS
+   - service worker mantiene fallback offline per le funzioni locali: PASS
+
+7. Sicurezza di configurazione (audit)
+   - nessuna service_role/secret key prevista nel frontend: PASS
+   - SQL abilita RLS e concede accesso applicativo solo ad authenticated: PASS
+   - policy di tabella limitate a auth.uid() = user_id: PASS
+   - bucket Storage privato con cartella radice = auth.uid(): PASS
+
+LIMITI DI VERIFICA ESTERNI
+- Non è disponibile in questa sessione un progetto Supabase reale con credenziali dell'utente: login reale, RLS contro il progetto remoto, upload/download Storage e sincronizzazione effettiva tra due dispositivi non possono essere verificati end-to-end prima della configurazione esterna.
+- La navigazione headless Chromium verso localhost è bloccata/inaffidabile nell'ambiente, quindi non è stato possibile eseguire un nuovo test UI browser end-to-end della v1.7. Le parti UI non-cloud derivano dalla v1.6 già testata; per la v1.7 sono stati eseguiti audit DOM, sintassi e test del motore di sync.
+- Vercel installerà le dipendenze server al deploy. Non è stato eseguito un deploy reale da questa sessione.
+
+SMOKE TEST RICHIESTO DOPO CONFIGURAZIONE SUPABASE
+- crea/account e login su iPhone;
+- sincronizza un prodotto con scheda tecnica e PDF;
+- accedi con lo stesso account da iPad/PC;
+- verifica prodotto, scenari, foto e download PDF;
+- modifica lo scenario sul secondo dispositivo e sincronizza;
+- verifica la modifica sul primo;
+- elimina un prodotto offline, torna online e verifica la cancellazione sugli altri dispositivi;
+- chiudi/riapri la PWA offline e verifica archivio/calcolo locale.
 
 ESITO
-Nessuna regressione evidente rilevata nei test disponibili. Per chiudere anche le verifiche dipendenti dall'ambiente esterno, dopo il deploy è consigliato un rapido smoke test reale su iPhone/iPad: installazione PWA, riapertura offline, selettore Foto/File e apertura di un PDF salvato.
+La build locale e i test eseguibili senza servizi esterni sono PASS. L'attivazione reale del Cloud richiede la configurazione Supabase descritta in SUPABASE_SETUP.md; solo dopo quel passaggio è possibile chiudere il test end-to-end multi-dispositivo.

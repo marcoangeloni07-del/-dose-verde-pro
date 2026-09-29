@@ -111,7 +111,7 @@ async function fetchText(url,headers={}){
   }
 }
 async function existsPdf(url){
-  const headers={'user-agent':'Mozilla/5.0 DoseVerde/1.6'};
+  const headers={'user-agent':'Mozilla/5.0 DoseVerde/1.7'};
   try{
     const controller=new AbortController();
     const timer=setTimeout(()=>controller.abort(),7000);

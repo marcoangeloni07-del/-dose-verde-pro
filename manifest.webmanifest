@@ -1,7 +1,7 @@
 {
   "name": "Dose Verde",
   "short_name": "Dose Verde",
-  "description": "Calcolo dosi, archivio prodotti e preventivi per trattamenti del verde.",
+  "description": "Dose Verde Pro: archivio sincronizzato, calcolo dosi, schede tecniche e preventivi per trattamenti del verde.",
   "id": "/",
   "start_url": "/",
   "scope": "/",

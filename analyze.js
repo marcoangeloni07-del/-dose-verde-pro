@@ -220,7 +220,7 @@ module.exports=async function(req,res){
     const r=await fetch(u.toString(),{
       redirect:'follow',
       signal:controller.signal,
-      headers:{'user-agent':'Mozilla/5.0 DoseVerde/1.6'}
+      headers:{'user-agent':'Mozilla/5.0 DoseVerde/1.7'}
     });
     clearTimeout(timer);
 

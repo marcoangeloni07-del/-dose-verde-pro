@@ -15,6 +15,10 @@
       "use": "@vercel/static"
     },
     {
+      "src": "cloud-sync-core.js",
+      "use": "@vercel/static"
+    },
+    {
       "src": "icon-192.png",
       "use": "@vercel/static"
     },
@@ -37,6 +41,10 @@
     {
       "src": "tariffe.js",
       "use": "@vercel/node"
+    },
+    {
+      "src": "cloud-config.js",
+      "use": "@vercel/node"
     }
   ],
   "routes": [
@@ -55,6 +63,10 @@
     {
       "src": "/api/tariffe",
       "dest": "/tariffe.js"
+    },
+    {
+      "src": "/api/cloud-config",
+      "dest": "/cloud-config.js"
     },
     {
       "src": "/manifest.webmanifest",
@@ -91,6 +103,13 @@
       "dest": "/index.html",
       "headers": {
         "Cache-Control": "no-store, max-age=0"
+      }
+    },
+    {
+      "src": "/cloud-sync-core.js",
+      "dest": "/cloud-sync-core.js",
+      "headers": {
+        "Cache-Control": "no-cache"
       }
     },
     {
