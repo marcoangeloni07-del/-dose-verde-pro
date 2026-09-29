@@ -1,29 +1,26 @@
-DOSE VERDE 1.5.1 — PDF LOCALE / FALLBACK HTTP 403
+DOSE VERDE 1.5.2 — PWA / OFFLINE + SELETTORE FOTO CORRETTO
 
-PROBLEMA RISOLTO
-Alcuni siti ufficiali (per esempio Bayer CropScience) permettono al normale browser di aprire un PDF,
-ma bloccano le richieste automatiche provenienti da server cloud come Vercel con HTTP 403.
-Non è un errore del PDF né dell'URL.
+PWA / OFFLINE
+- installabile su iPhone/iPad dalla schermata Home
+- si apre in modalità standalone, come un'app
+- archivio prodotti, immagini già salvate, calcolatore e preventivo restano disponibili senza Internet
+- ricerca Ministero, ricerca web, prezzario online e download di nuove fonti richiedono Internet
+- PDF.js/Tesseract usati almeno una volta possono essere riutilizzati dalla cache quando disponibili
+- quando torna Internet, la navigazione usa la versione online e aggiorna la cache
 
-NUOVA FUNZIONE
-Nella sezione "Scheda tecnica / etichetta online" trovi ora:
-- URL + Analizza (come prima)
-- Carica PDF + Analizza PDF caricato
+FOTO ETICHETTA
+Sono ora separati due comandi:
+- “Scatta foto” = apre direttamente la fotocamera
+- “Scegli immagine/file” = NON usa capture e permette di selezionare un'immagine già salvata da Foto o File
 
-Se il sito risponde 403:
-1. apri il PDF in Safari;
-2. salvalo in File;
-3. torna a Dose Verde;
-4. scegli il PDF;
-5. premi "Analizza PDF caricato".
+NUOVI FILE PWA
+- manifest.webmanifest
+- sw.js
+- icon-192.png
+- icon-512.png
 
-Il PDF viene letto direttamente nel browser dell'iPad/iPhone e non viene richiesto nuovamente al sito Bayer.
-L'app prova poi a estrarre dosi, volume d'acqua, base di calcolo e scenari come nella normale analisi online.
-
-Se il PDF è una scansione senza testo, usa invece la foto + OCR.
-
-AGGIORNAMENTO
-Sostituisci nella root:
+AGGIORNAMENTO GITHUB
+Sostituisci/carica nella root TUTTI questi file:
 - index.html
 - search.js
 - find-technical.js
@@ -31,4 +28,15 @@ Sostituisci nella root:
 - tariffe.js
 - package.json
 - vercel.json
-Poi Commit changes e attendi il redeploy.
+- manifest.webmanifest
+- sw.js
+- icon-192.png
+- icon-512.png
+
+Poi fai Commit changes e attendi il redeploy Vercel.
+
+INSTALLAZIONE SU IPHONE
+Safari > Dose Verde > Condividi > Aggiungi alla schermata Home > Aggiungi.
+
+PRIMO AVVIO OFFLINE
+Apri almeno una volta la nuova versione mentre sei online, così il service worker può memorizzare l'app sul dispositivo.

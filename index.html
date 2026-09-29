@@ -3,8 +3,14 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Dose Verde — versione stabile</title>
+<title>Dose Verde</title>
 <meta name="theme-color" content="#1f6b45">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Dose Verde">
+<meta name="mobile-web-app-capable" content="yes">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="apple-touch-icon" href="/icon-192.png">
 <style>
 :root{
   --green:#1f6b45;
@@ -384,14 +390,19 @@ footer{text-align:center;color:#7a8980;font-size:11px;padding:0 14px 25px}
 
 
     <div class="photo-box">
-      <label for="pPhoto">Foto etichetta</label>
+      <label>Foto etichetta</label>
       <div class="photo-row">
         <div id="photoEmpty" class="photo-empty">📷</div>
         <img id="photoPreview" class="photo-preview hidden" alt="Anteprima etichetta">
         <div>
-          <input id="pPhoto" type="file" accept="image/*" capture="environment">
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <label class="btn secondary small" style="display:inline-block;margin:0;cursor:pointer" for="pPhotoCamera">📷 Scatta foto</label>
+            <label class="btn secondary small" style="display:inline-block;margin:0;cursor:pointer" for="pPhotoFile">🗂️ Scegli immagine/file</label>
+          </div>
+          <input id="pPhotoCamera" type="file" accept="image/*" capture="environment" class="hidden">
+          <input id="pPhotoFile" type="file" accept="image/*,.jpg,.jpeg,.png,.webp,.heic,.heif" class="hidden">
           <div class="muted" style="margin-top:7px">
-            Scatta una foto o scegli l'immagine dell'etichetta. La foto viene ridimensionata prima del salvataggio.
+            “Scatta foto” apre direttamente la fotocamera. “Scegli immagine/file” non forza la fotocamera e permette di selezionare un'immagine già salvata da Foto o File.
           </div>
           <button id="removePhotoBtn" class="btn secondary small hidden" style="margin-top:8px" type="button">Rimuovi foto</button>
           <button id="saveDraftBtn" class="btn secondary small hidden" style="margin-top:8px" type="button">Salva foto come bozza</button>
@@ -552,7 +563,7 @@ footer{text-align:center;color:#7a8980;font-size:11px;padding:0 14px 25px}
 
 </main>
 
-<footer>Dose Verde · versione 1.5.1 PDF locale</footer>
+<footer>Dose Verde · versione 1.5.2 PWA offline</footer>
 
 <script>
 (function(){
@@ -866,7 +877,8 @@ function resetForm(){
   el('ocrPanel').classList.add('hidden');
   el('ocrText').textContent='';
   el('ocrStatus').textContent='';
-  el('pPhoto').value='';
+  el('pPhotoCamera').value='';
+  el('pPhotoFile').value='';
   currentPhoto='';
   updatePhotoPreview();
   el('formTitle').textContent='Nuovo prodotto';
@@ -893,7 +905,8 @@ function editProduct(id){
   el('searchCommercial').value=p.name||'';
   el('searchRegistration').value=p.registration||'';
   currentPhoto=p.photo||'';
-  el('pPhoto').value='';
+  el('pPhotoCamera').value='';
+  el('pPhotoFile').value='';
   updatePhotoPreview();
   el('formTitle').textContent=p.draft?'Bozza prodotto':'Modifica prodotto';
   el('deleteBtn').classList.remove('hidden');
@@ -998,8 +1011,9 @@ function resizePhoto(file){
     reader.readAsDataURL(file);
   });
 }
-async function photoChanged(){
-  var file=el('pPhoto').files[0];
+async function photoChanged(ev){
+  var input=ev && ev.target ? ev.target : null;
+  var file=input && input.files ? input.files[0] : null;
   if(!file)return;
   try{
     currentPhoto=await resizePhoto(file);
@@ -1010,7 +1024,8 @@ async function photoChanged(){
 }
 function removePhoto(){
   currentPhoto='';
-  el('pPhoto').value='';
+  el('pPhotoCamera').value='';
+  el('pPhotoFile').value='';
   updatePhotoPreview();
 }
 
@@ -1746,7 +1761,8 @@ function wire(){
   el('calcProduct').addEventListener('change',updateCalcInputs);
   el('saveBtn').addEventListener('click',saveProduct);
   el('deleteBtn').addEventListener('click',deleteProduct);
-  el('pPhoto').addEventListener('change',photoChanged);
+  el('pPhotoCamera').addEventListener('change',photoChanged);
+  el('pPhotoFile').addEventListener('change',photoChanged);
   el('removePhotoBtn').addEventListener('click',removePhoto);
   el('saveDraftBtn').addEventListener('click',savePhotoDraft);
   el('ocrBtn').addEventListener('click',runOCR);
@@ -1800,6 +1816,14 @@ function wire(){
     }
   });
 }
+function refreshConnectionStatus(){
+  var base='Pronta · versione 1.5.2 PWA offline';
+  if(navigator.onLine){
+    el('status').textContent=base+' · online';
+  }else{
+    el('status').textContent=base+' · offline: archivio, calcolo e preventivo disponibili';
+  }
+}
 function start(){
   if(!localStorage.getItem(KEY)){
     saveProducts(defaultProducts);
@@ -1808,7 +1832,9 @@ function start(){
   renderProductSelect();
   renderQuoteProducts();
   loadQuoteDefaults();
-  el('status').textContent='Pronta · versione 1.5.1 PDF locale';
+  refreshConnectionStatus();
+  window.addEventListener('online',refreshConnectionStatus);
+  window.addEventListener('offline',refreshConnectionStatus);
 }
 
 window.addEventListener('DOMContentLoaded',start);
@@ -1818,14 +1844,10 @@ window.addEventListener('DOMContentLoaded',start);
 <script>
 (function(){
   if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.getRegistrations().then(function(regs){
-      regs.forEach(function(reg){ reg.unregister(); });
-    }).catch(function(){});
-  }
-  if ('caches' in window) {
-    caches.keys().then(function(keys){
-      keys.forEach(function(key){ caches.delete(key); });
-    }).catch(function(){});
+    window.addEventListener('load',function(){
+      navigator.serviceWorker.register('/sw.js',{scope:'/'})
+        .catch(function(err){ console.warn('Service worker non registrato:',err); });
+    });
   }
 })();
 </script>
